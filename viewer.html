@@ -272,6 +272,9 @@ function openDayModal(dateObj, instances) {
     }
     if (inst.status === "completed") {
       inner += `<div class="done-info">Completado el ${inst.completedDate}${inst.note ? " — " + inst.note : ""}</div>`;
+      if (inst.expiring && inst.expirationDate) {
+        inner += `<div class="done-info">Vence / renovar antes del ${inst.expirationDate}</div>`;
+      }
     }
     item.innerHTML = inner;
     body.appendChild(item);
