@@ -10,11 +10,15 @@
 
   optional: true  -> el admin puede marcarlo como "No aplica" para un empleado específico
   annualRenewal: true -> después del primer vencimiento, se repite cada año (misma fecha/mes/día)
+  expiring: true  -> no tiene fecha de renovación fija: cada vez que se marca como
+                     completado, el admin ingresa la fecha de expiración/vencimiento
+                     del documento, y esa fecha se convierte en el próximo vencimiento
+                     en el calendario (se repite así indefinidamente)
 */
 
 const REQUIREMENTS = [
   { id: "cro_check",          label: "CRO Check",                                   rule: "before_start" },
-  { id: "ids_received",       label: "IDs recibidos",                               rule: "before_start" },
+  { id: "ids_received",       label: "IDs recibidos",                               rule: "before_start", expiring: true },
   { id: "hiring_packet",      label: "Hiring Packet",                               rule: "before_start" },
   { id: "appendix_a",         label: "Appendix A – Background Check Consent",       rule: "before_start" },
   { id: "drug_test_consent",  label: "Drug Test Consent",                           rule: "before_start" },
@@ -27,7 +31,7 @@ const REQUIREMENTS = [
   { id: "acuity",             label: "Acuity",                                      rule: "days_after_start", offset: 7, optional: true, annualRenewal: true },
   { id: "fingerprints",       label: "Fingerprints",                                rule: "before_start" },
   { id: "drug_test",          label: "Drug test",                                   rule: "before_start" },
-  { id: "cpr_first_aid",      label: "CPR / First Aid Course",                      rule: "before_start" },
+  { id: "cpr_first_aid",      label: "CPR / First Aid Course",                      rule: "before_start", expiring: true },
   { id: "monthly_exclusion",  label: "Monthly exclusion check",                     rule: "recurring_monthly" },
   { id: "cari",                label: "CARI",                                       rule: "before_start" },
   { id: "cds_day0",           label: "CDS Day 0 Modules",                           rule: "before_start" },
