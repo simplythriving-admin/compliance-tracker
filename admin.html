@@ -453,10 +453,11 @@ function renderCalendar() {
     const dayInstances = eventsForDay(dateObj, currentInstances);
     const inSpan = dateInSpans(dateObj, spans);
     // Days that only fall within a red span (not an exact due/completion
-    // date) just show a simple reason message for what's still not done —
-    // completed requirements are never included here.
+    // date) just show a simple reason message explaining why that day was
+    // out of compliance — including items completed late, since the span
+    // covers the period before they were actually completed.
     const reasonOnly = inSpan
-      ? overdueReasonsForDay(dateObj, spans).filter(inst => !dayInstances.some(di => di.key === inst.key))
+      ? reasonsForDay(dateObj, spans).filter(inst => !dayInstances.some(di => di.key === inst.key))
       : [];
     const isFirstDay = sameDay(dateObj, employeeStartDate);
     const el = document.createElement("div");
