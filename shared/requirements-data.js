@@ -21,7 +21,7 @@ const REQUIREMENTS = [
   { id: "ids_received",       label: "IDs recibidos",                               rule: "before_start", expiring: true },
   { id: "hiring_packet",      label: "Hiring Packet",                               rule: "before_start" },
   { id: "appendix_a",         label: "Appendix A – Background Check Consent",       rule: "before_start" },
-  { id: "drug_test_consent",  label: "Drug Test Consent",                           rule: "before_start" },
+  { id: "drug_test_consent",  label: "Drug Test",                                   rule: "before_start" },
   { id: "difficulty_of_care", label: "Difficulty of Care Waiver",                   rule: "before_start", optional: true },
   { id: "dmv_consent",        label: "DMV Consent Form",                            rule: "before_start", optional: true },
   { id: "evv",                label: "EVV",                                         rule: "before_start", optional: true, annualRenewal: true },
