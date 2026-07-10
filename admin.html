@@ -150,7 +150,7 @@
     <h3>Add employee</h3>
     <div class="field"><label>Full name</label><input type="text" id="newName"></div>
     <div class="field"><label>Position (optional)</label><input type="text" id="newPosition"></div>
-    <div class="field"><label>Start date</label><input type="date" id="newStartDate"></div>
+    <div class="field"><label>Start date</label><input type="text" id="newStartDate" class="us-date" placeholder="MM/DD/YYYY" maxlength="10" inputmode="numeric"></div>
     <div class="field">
       <label>Not applicable for this employee:</label>
       <div id="optionalChecks"></div>
@@ -195,6 +195,26 @@ let currentInstances = [];
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+// ---------- US-FORMAT DATE INPUTS ----------
+// Native <input type="date"> pickers render in whatever format the
+// browser/OS locale uses (not something a webpage can control), so text
+// inputs are used instead, always displayed and typed as MM/DD/YYYY.
+function usToYmd(usStr) {
+  const m = (usStr || "").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  return `${m[3]}-${m[1]}-${m[2]}`;
+}
+function attachDateMask(input) {
+  input.addEventListener("input", () => {
+    const digits = input.value.replace(/\D/g, "").slice(0, 8);
+    let out = digits;
+    if (digits.length > 4) out = digits.slice(0, 2) + "/" + digits.slice(2, 4) + "/" + digits.slice(4);
+    else if (digits.length > 2) out = digits.slice(0, 2) + "/" + digits.slice(2);
+    input.value = out;
+  });
+}
+attachDateMask(document.getElementById("newStartDate"));
 
 // ---------- AUTH ----------
 document.getElementById("signInBtn").onclick = () => {
@@ -325,8 +345,8 @@ document.getElementById("cancelAdd").onclick = () => document.getElementById("ad
 document.getElementById("saveNewEmployee").onclick = async () => {
   const name = document.getElementById("newName").value.trim();
   const position = document.getElementById("newPosition").value.trim();
-  const startDate = document.getElementById("newStartDate").value;
-  if (!name || !startDate) { alert("Name and start date are required."); return; }
+  const startDate = usToYmd(document.getElementById("newStartDate").value);
+  if (!name || !startDate) { alert("Name and a valid start date (MM/DD/YYYY) are required."); return; }
   const notApplicable = {};
   OPTIONAL_REQUIREMENT_IDS.forEach(id => {
     notApplicable[id] = document.getElementById(`opt_${id}`).checked;
@@ -517,11 +537,11 @@ function openDayModal(dateObj, instances) {
       inner += `<button class="btn small" onclick="handleQuickComplete('${inst.key}', '${ymd(inst.dueDate)}')">Mark as completed</button>`;
     } else {
       const expirationField = inst.expiring
-        ? `<div class="field"><label>Expiration date / next renewal</label><input type="date" id="expdate_${inst.key}"></div>`
+        ? `<div class="field"><label>Expiration date / next renewal</label><input type="text" id="expdate_${inst.key}" class="us-date" placeholder="MM/DD/YYYY" maxlength="10" inputmode="numeric"></div>`
         : "";
       inner += `<button class="btn small" onclick="showMiniForm(this, '${inst.key}')">Mark as completed</button>
         <div class="mini-form" id="form_${inst.key}">
-          <div class="field"><label>Date completed</label><input type="date" id="date_${inst.key}" value="${ymd(new Date())}"></div>
+          <div class="field"><label>Date completed</label><input type="text" id="date_${inst.key}" class="us-date" placeholder="MM/DD/YYYY" maxlength="10" inputmode="numeric" value="${formatUS(new Date())}"></div>
           ${expirationField}
           <div class="field"><label>Note (optional)</label><textarea id="note_${inst.key}"></textarea></div>
           <button class="btn small" onclick="handleMarkComplete('${inst.key}', ${inst.expiring})">Save</button>
@@ -530,6 +550,7 @@ function openDayModal(dateObj, instances) {
     item.innerHTML = inner;
     body.appendChild(item);
   });
+  body.querySelectorAll(".us-date").forEach(attachDateMask);
   document.getElementById("dayModal").classList.add("show");
 }
 document.getElementById("closeDayModal").onclick = () => document.getElementById("dayModal").classList.remove("show");
@@ -556,12 +577,13 @@ function showMiniForm(btn, key) {
 }
 
 async function handleMarkComplete(key, expiring) {
-  const dateStr = document.getElementById(`date_${key}`).value;
+  const dateStr = usToYmd(document.getElementById(`date_${key}`).value);
   const note = document.getElementById(`note_${key}`).value;
+  if (!dateStr) { alert("Enter a valid date completed (MM/DD/YYYY)."); return; }
   let expirationDate = "";
   if (expiring) {
-    expirationDate = document.getElementById(`expdate_${key}`).value;
-    if (!expirationDate) { alert("Enter the expiration date / next renewal."); return; }
+    expirationDate = usToYmd(document.getElementById(`expdate_${key}`).value);
+    if (!expirationDate) { alert("Enter a valid expiration date / next renewal (MM/DD/YYYY)."); return; }
   }
   await markCompleted(key, dateStr, note, expirationDate);
   document.getElementById("dayModal").classList.remove("show");
