@@ -240,17 +240,24 @@ function renderCalendar() {
     const dateObj = new Date(calYear, calMonth, day);
     const dayInstances = eventsForDay(dateObj, currentInstances);
     const inSpan = dateInSpans(dateObj, spans);
-    const spanReasons = inSpan ? reasonsForDay(dateObj, spans) : [];
-    const clickInstances = mergeInstances(dayInstances, spanReasons);
+    // Days that only fall within a red span (not an exact due/completion
+    // date) just show a simple reason message for what's still not done —
+    // completed requirements are never included here.
+    const reasonOnly = inSpan
+      ? overdueReasonsForDay(dateObj, spans).filter(inst => !dayInstances.some(di => di.key === inst.key))
+      : [];
     const isFirstDay = sameDay(dateObj, employeeStartDate);
     const el = document.createElement("div");
     el.className = "cal-day" + (dayInstances.length ? " has-events" : "") + (sameDay(dateObj, today) ? " today" : "") + (inSpan ? " noncompliant" : "") + (isFirstDay ? " first-day" : "");
     const dotsHtml = dayInstances.slice(0, 6).map(i => `<span class="dot ${colorFor(i.status)}"></span>`).join("");
     const tagHtml = isFirstDay ? `<div class="first-day-tag">First day</div>` : "";
     el.innerHTML = `${tagHtml}<div class="num">${day}</div><div class="cal-dots">${dotsHtml}</div>`;
-    if (clickInstances.length) {
+    if (dayInstances.length) {
       el.style.cursor = "pointer";
-      el.onclick = () => openDayModal(dateObj, clickInstances);
+      el.onclick = () => openDayModal(dateObj, dayInstances);
+    } else if (reasonOnly.length) {
+      el.style.cursor = "pointer";
+      el.onclick = () => openReasonModal(dateObj, reasonOnly);
     }
     grid.appendChild(el);
   }
@@ -318,6 +325,29 @@ function openDayModal(dateObj, instances) {
   document.getElementById("dayModal").classList.add("show");
 }
 document.getElementById("closeDayModal").onclick = () => document.getElementById("dayModal").classList.remove("show");
+
+// Click outside the modal card (on the dark overlay) to close it.
+document.querySelectorAll(".overlay").forEach(overlay => {
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) overlay.classList.remove("show");
+  });
+});
+
+// Simple modal for days that are only red because they fall within a
+// non-compliance span (not an exact due/completion date): just the reason,
+// no status pill — nothing already completed is ever shown here.
+function openReasonModal(dateObj, instances) {
+  document.getElementById("dayModalTitle").textContent = formatUS(dateObj);
+  const body = document.getElementById("dayModalBody");
+  body.innerHTML = "";
+  instances.forEach(inst => {
+    const item = document.createElement("div");
+    item.className = "instance-item";
+    item.innerHTML = `<div class="reason">${reasonText(inst)}</div>`;
+    body.appendChild(item);
+  });
+  document.getElementById("dayModal").classList.add("show");
+}
 </script>
 </body>
 </html>
