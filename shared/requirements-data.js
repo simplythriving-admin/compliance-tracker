@@ -40,6 +40,7 @@ const REQUIREMENTS = [
   { id: "i9",                  label: "I-9 Form",                                   rule: "days_after_start", offset: 3 },
   { id: "weekly_timesheet",   label: "Weekly timesheet signature",                  rule: "recurring_weekly" },
   { id: "cds_60",              label: "CDS 60 day modules",                         rule: "days_after_start", offset: 60 },
+  { id: "cds_90",              label: "CDS 90 day modules",                         rule: "days_after_start", offset: 90 },
   { id: "cds_120",             label: "CDS 120 day modules",                        rule: "days_after_start", offset: 120 },
   { id: "cds_189",             label: "CDS 180 day modules",                        rule: "days_after_start", offset: 180 },
 ];
