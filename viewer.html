@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compliance Tracker · Vista</title>
+<style>
+  :root{
+    --bg:#F5F6F8; --ink:#1C2333; --sub:#6B7280; --card:#FFFFFF;
+    --line:#E5E7EB; --brand:#2A3B8F; --brand-light:#EEF0FB;
+    --red:#D64545; --red-bg:#FBEAEA; --green:#3C8F5C; --green-bg:#EAF6EE;
+    --blue:#2E6FD9; --blue-bg:#EAF1FC;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);}
+  header{background:var(--ink);color:#fff;padding:16px 24px;}
+  header h1{font-size:18px;font-weight:600;}
+  header .tag{font-size:11px;color:#9AA3C0;letter-spacing:0.5px;text-transform:uppercase;margin-top:2px;}
+
+  .layout{display:grid;grid-template-columns:280px 1fr;gap:20px;padding:20px;max-width:1200px;margin:0 auto;}
+  @media (max-width:800px){.layout{grid-template-columns:1fr;}}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;}
+  .panel h2{font-size:14px;margin-bottom:12px;}
+
+  #employeeList{display:flex;flex-direction:column;gap:8px;}
+  .emp-row{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:8px;border:1px solid var(--line);cursor:pointer;}
+  .emp-row:hover{background:var(--brand-light);}
+  .emp-row.active{border-color:var(--brand);background:var(--brand-light);}
+  .emp-name{font-size:13px;font-weight:600;}
+  .emp-sub{font-size:11px;color:var(--sub);}
+  .badge{font-size:11px;font-weight:700;border-radius:20px;padding:2px 8px;background:var(--red-bg);color:var(--red);}
+
+  #calHeader{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  #calTitle{font-size:15px;font-weight:600;}
+  .legend{display:flex;gap:14px;font-size:11px;color:var(--sub);margin-bottom:10px;}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;}
+  .dot.red{background:var(--red);} .dot.green{background:var(--green);} .dot.blue{background:var(--blue);}
+
+  .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .cal-dow{font-size:10px;color:var(--sub);text-align:center;text-transform:uppercase;padding-bottom:4px;}
+  .cal-day{min-height:64px;border:1px solid var(--line);border-radius:8px;padding:6px;font-size:12px;position:relative;}
+  .cal-day.empty{border:none;}
+  .cal-day.has-events{cursor:pointer;}
+  .cal-day:hover.has-events{border-color:var(--brand);}
+  .cal-day .num{font-weight:600;color:var(--sub);}
+  .cal-day.today .num{color:var(--brand);}
+  .cal-dots{position:absolute;bottom:6px;left:6px;display:flex;gap:3px;flex-wrap:wrap;}
+
+  .empty-state{color:var(--sub);font-size:13px;padding:20px;text-align:center;}
+  #noEmployee{color:var(--sub);font-size:13px;padding:40px;text-align:center;}
+  .btn{cursor:pointer;font-family:inherit;background:var(--brand);color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:13px;font-weight:600;}
+  .btn.secondary{background:#fff;color:var(--ink);border:1px solid var(--line);}
+  .btn.small{padding:5px 10px;font-size:12px;}
+
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);align-items:center;justify-content:center;z-index:50;padding:16px;}
+  .overlay.show{display:flex;}
+  .modal{background:#fff;border-radius:10px;padding:22px;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;}
+  .modal h3{font-size:15px;margin-bottom:14px;}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+
+  .instance-item{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px;}
+  .instance-item .lbl{font-size:13px;font-weight:600;margin-bottom:2px;}
+  .instance-item .status{font-size:11px;font-weight:700;display:inline-block;padding:2px 8px;border-radius:20px;margin-bottom:6px;}
+  .status.overdue{background:var(--red-bg);color:var(--red);}
+  .status.completed{background:var(--green-bg);color:var(--green);}
+  .status.upcoming{background:var(--blue-bg);color:var(--blue);}
+  .instance-item .reason{font-size:12px;color:var(--red);margin-bottom:6px;}
+  .instance-item .done-info{font-size:12px;color:var(--sub);}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Compliance Tracker</h1>
+  <div class="tag">Vista de solo lectura</div>
+</header>
+
+<div class="layout">
+  <div class="panel">
+    <h2>Empleados</h2>
+    <div id="employeeList"></div>
+  </div>
+
+  <div class="panel">
+    <div id="noEmployee">Selecciona un empleado a la izquierda.</div>
+    <div id="calendarArea" style="display:none;">
+      <div id="calHeader">
+        <button class="btn secondary small" id="prevMonth">←</button>
+        <div id="calTitle"></div>
+        <button class="btn secondary small" id="nextMonth">→</button>
+      </div>
+      <div class="legend">
+        <span><span class="dot red"></span>Vencido</span>
+        <span><span class="dot green"></span>Completado</span>
+        <span><span class="dot blue"></span>Próximo</span>
+      </div>
+      <div class="calendar" id="calGrid"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="dayModal">
+  <div class="modal">
+    <h3 id="dayModalTitle"></h3>
+    <div id="dayModalBody"></div>
+    <div class="modal-actions">
+      <button class="btn secondary small" id="closeDayModal">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="./shared/firebase-config.js"></script>
+<script src="./shared/requirements-data.js"></script>
+<script src="./shared/due-engine.js"></script>
+<script>
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let employees = {};
+let employeeBadges = {};
+let selectedEmployeeId = null;
+let selectedEmployeeCompletions = {};
+let unsubCompletions = null;
+let calYear, calMonth;
+let currentInstances = [];
+
+const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const DOW = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+
+db.collection("employees").orderBy("name").onSnapshot(async snap => {
+  employees = {};
+  snap.forEach(doc => employees[doc.id] = doc.data());
+  await refreshBadges();
+  renderEmployeeList();
+  if (selectedEmployeeId && !employees[selectedEmployeeId]) {
+    selectedEmployeeId = null;
+    showNoEmployee();
+  }
+});
+
+async function refreshBadges() {
+  const today = new Date();
+  for (const id of Object.keys(employees)) {
+    const snap = await db.collection("employees").doc(id).collection("completions").get();
+    const completionsByKey = {};
+    snap.forEach(d => completionsByKey[d.id] = d.data());
+    const instances = computeInstances(employees[id], completionsByKey, today);
+    employeeBadges[id] = instances.filter(i => i.status === "overdue").length;
+  }
+}
+
+function renderEmployeeList() {
+  const list = document.getElementById("employeeList");
+  list.innerHTML = "";
+  const ids = Object.keys(employees);
+  if (ids.length === 0) {
+    list.innerHTML = '<div class="empty-state">Aún no hay empleados registrados.</div>';
+    return;
+  }
+  ids.forEach(id => {
+    const e = employees[id];
+    const row = document.createElement("div");
+    row.className = "emp-row" + (id === selectedEmployeeId ? " active" : "");
+    const badgeCount = employeeBadges[id] || 0;
+    row.innerHTML = `
+      <div style="flex:1;">
+        <div class="emp-name">${e.name}</div>
+        <div class="emp-sub">Inicio: ${e.startDate}</div>
+      </div>
+      ${badgeCount > 0 ? `<span class="badge">${badgeCount}</span>` : ""}`;
+    row.onclick = () => selectEmployee(id);
+    list.appendChild(row);
+  });
+}
+
+function selectEmployee(id) {
+  selectedEmployeeId = id;
+  renderEmployeeList();
+  document.getElementById("noEmployee").style.display = "none";
+  document.getElementById("calendarArea").style.display = "block";
+  const today = new Date();
+  calYear = today.getFullYear();
+  calMonth = today.getMonth();
+  subscribeCompletions(id);
+}
+
+function showNoEmployee() {
+  document.getElementById("noEmployee").style.display = "block";
+  document.getElementById("calendarArea").style.display = "none";
+}
+
+function subscribeCompletions(employeeId) {
+  if (unsubCompletions) unsubCompletions();
+  unsubCompletions = db.collection("employees").doc(employeeId).collection("completions")
+    .onSnapshot(snap => {
+      selectedEmployeeCompletions = {};
+      snap.forEach(d => selectedEmployeeCompletions[d.id] = d.data());
+      renderCalendar();
+    });
+}
+
+document.getElementById("prevMonth").onclick = () => { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); };
+document.getElementById("nextMonth").onclick = () => { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); };
+
+function renderCalendar() {
+  if (!selectedEmployeeId) return;
+  const employee = employees[selectedEmployeeId];
+  const today = new Date();
+  currentInstances = computeInstances(employee, selectedEmployeeCompletions, today, 180);
+
+  document.getElementById("calTitle").textContent = `${MONTHS[calMonth]} ${calYear}`;
+  const grid = document.getElementById("calGrid");
+  grid.innerHTML = "";
+  DOW.forEach(d => {
+    const el = document.createElement("div");
+    el.className = "cal-dow";
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+
+  const firstDay = new Date(calYear, calMonth, 1);
+  const startOffset = firstDay.getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+  for (let i = 0; i < startOffset; i++) {
+    const el = document.createElement("div");
+    el.className = "cal-day empty";
+    grid.appendChild(el);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateObj = new Date(calYear, calMonth, day);
+    const dayInstances = currentInstances.filter(i => sameDay(i.dueDate, dateObj));
+    const el = document.createElement("div");
+    el.className = "cal-day" + (dayInstances.length ? " has-events" : "") + (sameDay(dateObj, today) ? " today" : "");
+    const dotsHtml = dayInstances.slice(0, 6).map(i => `<span class="dot ${colorFor(i.status)}"></span>`).join("");
+    el.innerHTML = `<div class="num">${day}</div><div class="cal-dots">${dotsHtml}</div>`;
+    if (dayInstances.length) {
+      el.onclick = () => openDayModal(dateObj, dayInstances);
+    }
+    grid.appendChild(el);
+  }
+}
+
+function sameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+function colorFor(status) {
+  if (status === "overdue") return "red";
+  if (status === "completed") return "green";
+  return "blue";
+}
+function statusLabel(status) {
+  if (status === "overdue") return "Vencido";
+  if (status === "completed") return "Completado";
+  return "Próximo";
+}
+
+function openDayModal(dateObj, instances) {
+  document.getElementById("dayModalTitle").textContent = ymd(dateObj);
+  const body = document.getElementById("dayModalBody");
+  body.innerHTML = "";
+  instances.forEach(inst => {
+    const item = document.createElement("div");
+    item.className = "instance-item";
+    let inner = `<div class="lbl">${inst.label}</div><div class="status ${inst.status}">${statusLabel(inst.status)}</div>`;
+    if (inst.status === "overdue") {
+      inner += `<div class="reason">${reasonText(inst)}</div>`;
+    }
+    if (inst.status === "completed") {
+      inner += `<div class="done-info">Completado el ${inst.completedDate}${inst.note ? " — " + inst.note : ""}</div>`;
+    }
+    item.innerHTML = inner;
+    body.appendChild(item);
+  });
+  document.getElementById("dayModal").classList.add("show");
+}
+document.getElementById("closeDayModal").onclick = () => document.getElementById("dayModal").classList.remove("show");
+</script>
+</body>
+</html>

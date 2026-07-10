@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compliance Tracker · Admin</title>
+<style>
+  :root{
+    --bg:#F5F6F8; --ink:#1C2333; --sub:#6B7280; --card:#FFFFFF;
+    --line:#E5E7EB; --brand:#2A3B8F; --brand-light:#EEF0FB;
+    --red:#D64545; --red-bg:#FBEAEA; --green:#3C8F5C; --green-bg:#EAF6EE;
+    --blue:#2E6FD9; --blue-bg:#EAF1FC;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);}
+  header{background:var(--ink);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;}
+  header h1{font-size:18px;font-weight:600;}
+  header .tag{font-size:11px;color:#9AA3C0;letter-spacing:0.5px;text-transform:uppercase;margin-top:2px;}
+  #userBox{display:flex;align-items:center;gap:10px;font-size:13px;}
+  button{cursor:pointer;font-family:inherit;}
+  .btn{background:var(--brand);color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:13px;font-weight:600;}
+  .btn:hover{opacity:0.9;}
+  .btn.secondary{background:#fff;color:var(--ink);border:1px solid var(--line);}
+  .btn.danger{background:var(--red);}
+  .btn.small{padding:5px 10px;font-size:12px;}
+
+  #gate{display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;gap:16px;text-align:center;padding:20px;}
+  #gate p{color:var(--sub);max-width:420px;font-size:14px;}
+
+  #app{display:none;}
+  .layout{display:grid;grid-template-columns:280px 1fr;gap:20px;padding:20px;max-width:1200px;margin:0 auto;}
+  @media (max-width:800px){.layout{grid-template-columns:1fr;}}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;}
+  .panel h2{font-size:14px;margin-bottom:12px;}
+
+  #employeeList{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+  .emp-row{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:8px;border:1px solid var(--line);cursor:pointer;}
+  .emp-row:hover{background:var(--brand-light);}
+  .emp-row.active{border-color:var(--brand);background:var(--brand-light);}
+  .emp-name{font-size:13px;font-weight:600;}
+  .emp-sub{font-size:11px;color:var(--sub);}
+  .badge{font-size:11px;font-weight:700;border-radius:20px;padding:2px 8px;}
+  .badge.red{background:var(--red-bg);color:var(--red);}
+  .emp-actions{display:flex;gap:6px;align-items:center;}
+  .icon-btn{background:none;border:none;color:var(--sub);font-size:14px;padding:2px 4px;}
+  .icon-btn:hover{color:var(--red);}
+
+  #calHeader{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  #calTitle{font-size:15px;font-weight:600;}
+  .legend{display:flex;gap:14px;font-size:11px;color:var(--sub);margin-bottom:10px;}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;}
+  .dot.red{background:var(--red);} .dot.green{background:var(--green);} .dot.blue{background:var(--blue);}
+
+  .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .cal-dow{font-size:10px;color:var(--sub);text-align:center;text-transform:uppercase;padding-bottom:4px;}
+  .cal-day{min-height:64px;border:1px solid var(--line);border-radius:8px;padding:6px;font-size:12px;position:relative;cursor:default;}
+  .cal-day.empty{border:none;}
+  .cal-day.has-events{cursor:pointer;}
+  .cal-day:hover.has-events{border-color:var(--brand);}
+  .cal-day .num{font-weight:600;color:var(--sub);}
+  .cal-day.today .num{color:var(--brand);}
+  .cal-dots{position:absolute;bottom:6px;left:6px;display:flex;gap:3px;flex-wrap:wrap;}
+
+  .empty-state{color:var(--sub);font-size:13px;padding:20px;text-align:center;}
+
+  #noEmployee{color:var(--sub);font-size:13px;padding:40px;text-align:center;}
+
+  .quick-actions{margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;}
+
+  /* Modal */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);align-items:center;justify-content:center;z-index:50;padding:16px;}
+  .overlay.show{display:flex;}
+  .modal{background:#fff;border-radius:10px;padding:22px;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;}
+  .modal h3{font-size:15px;margin-bottom:14px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12px;color:var(--sub);margin-bottom:4px;}
+  .field input[type=text],.field input[type=date],.field textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-family:inherit;}
+  .field textarea{resize:vertical;min-height:50px;}
+  .checkline{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px;}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+
+  .instance-item{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px;}
+  .instance-item .lbl{font-size:13px;font-weight:600;margin-bottom:2px;}
+  .instance-item .status{font-size:11px;font-weight:700;display:inline-block;padding:2px 8px;border-radius:20px;margin-bottom:6px;}
+  .status.overdue{background:var(--red-bg);color:var(--red);}
+  .status.completed{background:var(--green-bg);color:var(--green);}
+  .status.upcoming{background:var(--blue-bg);color:var(--blue);}
+  .instance-item .reason{font-size:12px;color:var(--red);margin-bottom:6px;}
+  .instance-item .done-info{font-size:12px;color:var(--sub);margin-bottom:6px;}
+  .mini-form{display:none;margin-top:8px;}
+  .mini-form.show{display:block;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Compliance Tracker</h1>
+    <div class="tag">Panel de administración</div>
+  </div>
+  <div id="userBox"></div>
+</header>
+
+<div id="gate">
+  <p>Inicia sesión con la cuenta autorizada para administrar los empleados y sus requerimientos de compliance.</p>
+  <button class="btn" id="signInBtn">Iniciar sesión con Google</button>
+  <p id="gateMsg" style="color:var(--red);"></p>
+</div>
+
+<div id="app">
+  <div class="layout">
+
+    <div class="panel">
+      <h2>Empleados</h2>
+      <div id="employeeList"></div>
+      <button class="btn secondary" style="width:100%;" id="addEmployeeBtn">+ Agregar empleado</button>
+    </div>
+
+    <div class="panel">
+      <div id="noEmployee">Selecciona un empleado a la izquierda, o agrega uno nuevo.</div>
+      <div id="calendarArea" style="display:none;">
+        <div class="quick-actions">
+          <button class="btn secondary small" id="weeklyShortcutBtn">✓ Marcar firma de bitácora de esta semana</button>
+        </div>
+        <div id="calHeader">
+          <button class="btn secondary small" id="prevMonth">←</button>
+          <div id="calTitle"></div>
+          <button class="btn secondary small" id="nextMonth">→</button>
+        </div>
+        <div class="legend">
+          <span><span class="dot red"></span>Vencido</span>
+          <span><span class="dot green"></span>Completado</span>
+          <span><span class="dot blue"></span>Próximo</span>
+        </div>
+        <div class="calendar" id="calGrid"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal: agregar empleado -->
+<div class="overlay" id="addModal">
+  <div class="modal">
+    <h3>Agregar empleado</h3>
+    <div class="field"><label>Nombre completo</label><input type="text" id="newName"></div>
+    <div class="field"><label>Puesto (opcional)</label><input type="text" id="newPosition"></div>
+    <div class="field"><label>Fecha de inicio</label><input type="date" id="newStartDate"></div>
+    <div class="field">
+      <label>No aplica para este empleado:</label>
+      <div id="optionalChecks"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary small" id="cancelAdd">Cancelar</button>
+      <button class="btn small" id="saveNewEmployee">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: día del calendario -->
+<div class="overlay" id="dayModal">
+  <div class="modal">
+    <h3 id="dayModalTitle"></h3>
+    <div id="dayModalBody"></div>
+    <div class="modal-actions">
+      <button class="btn secondary small" id="closeDayModal">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="./shared/firebase-config.js"></script>
+<script src="./shared/requirements-data.js"></script>
+<script src="./shared/due-engine.js"></script>
+<script>
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+let currentUser = null;
+let employees = {};          // id -> {name, position, startDate, notApplicable}
+let employeeBadges = {};     // id -> overdue count
+let selectedEmployeeId = null;
+let selectedEmployeeCompletions = {}; // key -> {completedDate, note}
+let unsubCompletions = null;
+let calYear, calMonth; // mes visible en el calendario (0-11)
+let currentInstances = [];
+
+const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const DOW = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+
+// ---------- AUTH ----------
+document.getElementById("signInBtn").onclick = () => {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(e => {
+    document.getElementById("gateMsg").textContent = "Error al iniciar sesión: " + e.message;
+  });
+};
+
+auth.onAuthStateChanged(user => {
+  currentUser = user;
+  const gate = document.getElementById("gate");
+  const app = document.getElementById("app");
+  const userBox = document.getElementById("userBox");
+  if (user && user.email === ADMIN_EMAIL) {
+    gate.style.display = "none";
+    app.style.display = "block";
+    userBox.innerHTML = `<span>${user.email}</span><button class="btn secondary small" id="signOutBtn">Salir</button>`;
+    document.getElementById("signOutBtn").onclick = () => auth.signOut();
+    listenEmployees();
+  } else if (user) {
+    gate.style.display = "flex";
+    app.style.display = "none";
+    document.getElementById("gateMsg").textContent = "Esta cuenta no tiene permiso de administrador.";
+    auth.signOut();
+  } else {
+    gate.style.display = "flex";
+    app.style.display = "none";
+    userBox.innerHTML = "";
+  }
+});
+
+// ---------- EMPLOYEES ----------
+function listenEmployees() {
+  db.collection("employees").orderBy("name").onSnapshot(async snap => {
+    employees = {};
+    snap.forEach(doc => employees[doc.id] = doc.data());
+    await refreshBadges();
+    renderEmployeeList();
+    if (selectedEmployeeId && !employees[selectedEmployeeId]) {
+      selectedEmployeeId = null;
+      showNoEmployee();
+    }
+  });
+}
+
+async function refreshBadges() {
+  const today = new Date();
+  for (const id of Object.keys(employees)) {
+    const snap = await db.collection("employees").doc(id).collection("completions").get();
+    const completionsByKey = {};
+    snap.forEach(d => completionsByKey[d.id] = d.data());
+    const instances = computeInstances(employees[id], completionsByKey, today);
+    employeeBadges[id] = instances.filter(i => i.status === "overdue").length;
+  }
+}
+
+function renderEmployeeList() {
+  const list = document.getElementById("employeeList");
+  list.innerHTML = "";
+  const ids = Object.keys(employees);
+  if (ids.length === 0) {
+    list.innerHTML = '<div class="empty-state">Aún no hay empleados.</div>';
+    return;
+  }
+  ids.forEach(id => {
+    const e = employees[id];
+    const row = document.createElement("div");
+    row.className = "emp-row" + (id === selectedEmployeeId ? " active" : "");
+    const badgeCount = employeeBadges[id] || 0;
+    row.innerHTML = `
+      <div onclick="selectEmployee('${id}')" style="flex:1;">
+        <div class="emp-name">${e.name}</div>
+        <div class="emp-sub">Inicio: ${e.startDate}</div>
+      </div>
+      <div class="emp-actions">
+        ${badgeCount > 0 ? `<span class="badge red">${badgeCount}</span>` : ""}
+        <button class="icon-btn" title="Eliminar" onclick="deleteEmployee('${id}', event)">🗑</button>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+
+function selectEmployee(id) {
+  selectedEmployeeId = id;
+  renderEmployeeList();
+  document.getElementById("noEmployee").style.display = "none";
+  document.getElementById("calendarArea").style.display = "block";
+  const today = new Date();
+  calYear = today.getFullYear();
+  calMonth = today.getMonth();
+  subscribeCompletions(id);
+}
+
+function showNoEmployee() {
+  document.getElementById("noEmployee").style.display = "block";
+  document.getElementById("calendarArea").style.display = "none";
+}
+
+async function deleteEmployee(id, evt) {
+  evt.stopPropagation();
+  if (!confirm(`¿Eliminar a ${employees[id].name}? Esto borrará también su historial de compliance.`)) return;
+  const compSnap = await db.collection("employees").doc(id).collection("completions").get();
+  const batch = db.batch();
+  compSnap.forEach(d => batch.delete(d.ref));
+  batch.delete(db.collection("employees").doc(id));
+  await batch.commit();
+  if (selectedEmployeeId === id) {
+    selectedEmployeeId = null;
+    showNoEmployee();
+  }
+}
+
+// ---------- ADD EMPLOYEE MODAL ----------
+document.getElementById("addEmployeeBtn").onclick = () => {
+  const box = document.getElementById("optionalChecks");
+  box.innerHTML = OPTIONAL_REQUIREMENT_IDS.map(id => {
+    const req = REQUIREMENTS.find(r => r.id === id);
+    return `<div class="checkline"><input type="checkbox" id="opt_${id}"><label for="opt_${id}">${req.label}</label></div>`;
+  }).join("");
+  document.getElementById("newName").value = "";
+  document.getElementById("newPosition").value = "";
+  document.getElementById("newStartDate").value = "";
+  document.getElementById("addModal").classList.add("show");
+};
+document.getElementById("cancelAdd").onclick = () => document.getElementById("addModal").classList.remove("show");
+
+document.getElementById("saveNewEmployee").onclick = async () => {
+  const name = document.getElementById("newName").value.trim();
+  const position = document.getElementById("newPosition").value.trim();
+  const startDate = document.getElementById("newStartDate").value;
+  if (!name || !startDate) { alert("Nombre y fecha de inicio son obligatorios."); return; }
+  const notApplicable = {};
+  OPTIONAL_REQUIREMENT_IDS.forEach(id => {
+    notApplicable[id] = document.getElementById(`opt_${id}`).checked;
+  });
+  await db.collection("employees").add({ name, position, startDate, notApplicable, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+  document.getElementById("addModal").classList.remove("show");
+};
+
+// ---------- COMPLETIONS ----------
+function subscribeCompletions(employeeId) {
+  if (unsubCompletions) unsubCompletions();
+  unsubCompletions = db.collection("employees").doc(employeeId).collection("completions")
+    .onSnapshot(snap => {
+      selectedEmployeeCompletions = {};
+      snap.forEach(d => selectedEmployeeCompletions[d.id] = d.data());
+      renderCalendar();
+    });
+}
+
+async function markCompleted(key, dateStr, note) {
+  await db.collection("employees").doc(selectedEmployeeId).collection("completions").doc(key)
+    .set({ completedDate: dateStr, note: note || "", completedBy: currentUser.email, completedAt: firebase.firestore.FieldValue.serverTimestamp() });
+}
+
+async function undoCompleted(key) {
+  await db.collection("employees").doc(selectedEmployeeId).collection("completions").doc(key).delete();
+}
+
+// ---------- CALENDAR ----------
+document.getElementById("prevMonth").onclick = () => { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); };
+document.getElementById("nextMonth").onclick = () => { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); };
+
+function renderCalendar() {
+  if (!selectedEmployeeId) return;
+  const employee = employees[selectedEmployeeId];
+  const today = new Date();
+  currentInstances = computeInstances(employee, selectedEmployeeCompletions, today, 180);
+
+  document.getElementById("calTitle").textContent = `${MONTHS[calMonth]} ${calYear}`;
+
+  const grid = document.getElementById("calGrid");
+  grid.innerHTML = "";
+  DOW.forEach(d => {
+    const el = document.createElement("div");
+    el.className = "cal-dow";
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+
+  const firstDay = new Date(calYear, calMonth, 1);
+  const startOffset = firstDay.getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+  for (let i = 0; i < startOffset; i++) {
+    const el = document.createElement("div");
+    el.className = "cal-day empty";
+    grid.appendChild(el);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateObj = new Date(calYear, calMonth, day);
+    const dayInstances = currentInstances.filter(i => sameDay(i.dueDate, dateObj));
+    const el = document.createElement("div");
+    el.className = "cal-day" + (dayInstances.length ? " has-events" : "") + (sameDay(dateObj, today) ? " today" : "");
+    const dotsHtml = dayInstances.slice(0, 6).map(i => `<span class="dot ${colorFor(i.status)}"></span>`).join("");
+    el.innerHTML = `<div class="num">${day}</div><div class="cal-dots">${dotsHtml}</div>`;
+    if (dayInstances.length) {
+      el.onclick = () => openDayModal(dateObj, dayInstances);
+    }
+    grid.appendChild(el);
+  }
+}
+
+function sameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+function colorFor(status) {
+  if (status === "overdue") return "red";
+  if (status === "completed") return "green";
+  return "blue";
+}
+function statusLabel(status) {
+  if (status === "overdue") return "Vencido";
+  if (status === "completed") return "Completado";
+  return "Próximo";
+}
+
+function openDayModal(dateObj, instances) {
+  document.getElementById("dayModalTitle").textContent = ymd(dateObj);
+  const body = document.getElementById("dayModalBody");
+  body.innerHTML = "";
+  instances.forEach(inst => {
+    const item = document.createElement("div");
+    item.className = "instance-item";
+    let inner = `<div class="lbl">${inst.label}</div><div class="status ${inst.status}">${statusLabel(inst.status)}</div>`;
+    if (inst.status === "overdue") {
+      inner += `<div class="reason">${reasonText(inst)}</div>`;
+    }
+    if (inst.status === "completed") {
+      inner += `<div class="done-info">Completado el ${inst.completedDate}${inst.note ? " — " + inst.note : ""}</div>`;
+      inner += `<button class="btn secondary small" onclick="handleUndo('${inst.key}')">Deshacer</button>`;
+    } else {
+      inner += `<button class="btn small" onclick="showMiniForm(this, '${inst.key}')">Marcar como completado</button>
+        <div class="mini-form" id="form_${inst.key}">
+          <div class="field"><label>Fecha en que se completó</label><input type="date" id="date_${inst.key}" value="${ymd(new Date())}"></div>
+          <div class="field"><label>Nota (opcional)</label><textarea id="note_${inst.key}"></textarea></div>
+          <button class="btn small" onclick="handleMarkComplete('${inst.key}')">Guardar</button>
+        </div>`;
+    }
+    item.innerHTML = inner;
+    body.appendChild(item);
+  });
+  document.getElementById("dayModal").classList.add("show");
+}
+document.getElementById("closeDayModal").onclick = () => document.getElementById("dayModal").classList.remove("show");
+
+function showMiniForm(btn, key) {
+  document.getElementById(`form_${key}`).classList.add("show");
+  btn.style.display = "none";
+}
+
+async function handleMarkComplete(key) {
+  const dateStr = document.getElementById(`date_${key}`).value;
+  const note = document.getElementById(`note_${key}`).value;
+  await markCompleted(key, dateStr, note);
+  document.getElementById("dayModal").classList.remove("show");
+}
+
+async function handleUndo(key) {
+  if (!confirm("¿Deshacer este cumplimiento?")) return;
+  await undoCompleted(key);
+  document.getElementById("dayModal").classList.remove("show");
+}
+
+// ---------- WEEKLY SHORTCUT ----------
+document.getElementById("weeklyShortcutBtn").onclick = () => {
+  if (!selectedEmployeeId) return;
+  const today = new Date();
+  const weeklyInstances = currentInstances.filter(i => i.reqId === "weekly_timesheet");
+  // La instancia de esta semana: la más cercana a hoy (sin completar, o si todas completas, la próxima)
+  let target = weeklyInstances.find(i => i.status !== "completed" && i.dueDate <= addDays(today, 3));
+  if (!target) target = weeklyInstances.find(i => i.status === "upcoming");
+  if (!target) { alert("No hay una instancia de firma semanal disponible en este momento."); return; }
+  openDayModal(target.dueDate, [target]);
+};
+</script>
+</body>
+</html>
