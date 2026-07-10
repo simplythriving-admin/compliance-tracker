@@ -61,6 +61,8 @@
   .cal-day .num{font-weight:600;color:var(--sub);}
   .cal-day.today .num{color:var(--brand);}
   .cal-day.noncompliant{background:var(--red-bg);}
+  .cal-day.first-day{border-color:var(--brand);}
+  .first-day-tag{background:var(--brand);color:#fff;font-size:8px;font-weight:800;letter-spacing:0.4px;text-align:center;padding:2px 3px;border-radius:4px;margin-bottom:3px;text-transform:uppercase;}
   .cal-dots{position:absolute;bottom:6px;left:6px;display:flex;gap:3px;flex-wrap:wrap;}
 
   .empty-state{color:var(--sub);font-size:13px;padding:20px;text-align:center;}
@@ -363,6 +365,7 @@ function renderCalendar() {
   const today = new Date();
   currentInstances = computeInstances(employee, selectedEmployeeCompletions, today, 180);
   const spans = nonComplianceSpans(currentInstances, today);
+  const employeeStartDate = parseYMD(employee.startDate);
 
   document.getElementById("calTitle").textContent = `${MONTHS[calMonth]} ${calYear}`;
 
@@ -389,10 +392,12 @@ function renderCalendar() {
     const dateObj = new Date(calYear, calMonth, day);
     const dayInstances = eventsForDay(dateObj, currentInstances);
     const inSpan = dateInSpans(dateObj, spans);
+    const isFirstDay = sameDay(dateObj, employeeStartDate);
     const el = document.createElement("div");
-    el.className = "cal-day" + (dayInstances.length ? " has-events" : "") + (sameDay(dateObj, today) ? " today" : "") + (inSpan ? " noncompliant" : "");
+    el.className = "cal-day" + (dayInstances.length ? " has-events" : "") + (sameDay(dateObj, today) ? " today" : "") + (inSpan ? " noncompliant" : "") + (isFirstDay ? " first-day" : "");
     const dotsHtml = dayInstances.slice(0, 6).map(i => `<span class="dot ${colorFor(i.status)}"></span>`).join("");
-    el.innerHTML = `<div class="num">${day}</div><div class="cal-dots">${dotsHtml}</div>`;
+    const tagHtml = isFirstDay ? `<div class="first-day-tag">First day</div>` : "";
+    el.innerHTML = `${tagHtml}<div class="num">${day}</div><div class="cal-dots">${dotsHtml}</div>`;
     if (dayInstances.length) {
       el.onclick = () => openDayModal(dateObj, dayInstances);
     }
