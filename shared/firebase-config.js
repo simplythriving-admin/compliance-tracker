@@ -15,4 +15,4 @@ const firebaseConfig = {
 };
 
 // Email autorizado para editar (debe coincidir con la regla de seguridad en Firestore)
-const ADMIN_EMAIL = "st-admin@simplythriving.com";
+const ADMIN_EMAIL = "admin-st@simplythriving.com";
