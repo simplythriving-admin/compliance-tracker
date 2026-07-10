@@ -1,11 +1,11 @@
 /*
-  Motor de fechas límite.
-  Dado un empleado (con startDate y notApplicable) y un mapa de "completions"
-  ya guardadas, genera todas las instancias de requerimientos con su estado.
+  Due-date engine.
+  Given an employee (with startDate and notApplicable) and a map of already
+  saved "completions", generates every requirement instance with its status.
 */
 
 function ymd(date) {
-  // formatea a "YYYY-MM-DD" en horario local
+  // formats to "YYYY-MM-DD" in local time — used for storage/keys, not display
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
@@ -41,23 +41,32 @@ function startOfDay(date) {
   return d;
 }
 
+function formatUS(date) {
+  // Displays dates in US format MM/DD/YYYY (for on-screen display only;
+  // internal storage still uses ymd/YYYY-MM-DD).
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const y = date.getFullYear();
+  return `${m}/${d}/${y}`;
+}
+
 function nextSunday(date) {
-  // Si "date" ya es domingo, devuelve la misma fecha.
+  // If "date" is already a Sunday, returns the same date.
   const d = startOfDay(date);
-  const day = d.getDay(); // 0 = domingo ... 6 = sábado
+  const day = d.getDay(); // 0 = Sunday ... 6 = Saturday
   const add = (7 - day) % 7;
   return addDays(d, add);
 }
 
 /**
- * Genera todas las instancias (una por vencimiento) de los requerimientos
- * aplicables a un empleado, entre su fecha de inicio y un horizonte futuro.
+ * Generates every instance (one per due date) of the requirements that apply
+ * to an employee, from their start date through a future horizon.
  *
  * @param {Object} employee { startDate: "YYYY-MM-DD", notApplicable: {reqId: true, ...} }
  * @param {Object} completionsByKey  { "reqId__periodKey": {completedDate, note} }
  * @param {Date} today
- * @param {number} horizonDays  cuántos días hacia el futuro incluir (default 120)
- * @returns {Array} instancias { reqId, label, periodKey, dueDate (Date), status, completedDate, note, optional, isRecurring }
+ * @param {number} horizonDays  how many days into the future to include (default 120)
+ * @returns {Array} instances { reqId, label, periodKey, dueDate (Date), status, completedDate, note, optional, isRecurring }
  */
 function computeInstances(employee, completionsByKey, today, horizonDays = 120) {
   const start = parseYMD(employee.startDate);
@@ -73,9 +82,9 @@ function computeInstances(employee, completionsByKey, today, horizonDays = 120) 
       const baseDue = addDays(start, offset);
 
       if (req.expiring) {
-        // La fecha de vencimiento no se calcula sola: la define el admin cada
-        // vez que marca el requerimiento como completado (fecha de expiración
-        // del documento/certificado). Cada renovación genera la siguiente.
+        // There's no fixed renewal date: the admin sets the expiration date
+        // every time the requirement is marked completed. Each renewal
+        // generates the next due date.
         let dueDate = baseDue;
         let periodKey = "";
         let cycle = 0;
@@ -103,9 +112,9 @@ function computeInstances(employee, completionsByKey, today, horizonDays = 120) 
         pushInstance(req, baseDue, "");
       }
     } else if (req.rule === "recurring_weekly") {
-      // Vence todos los domingos. Se salta la primera semana (parcial) del
-      // empleado: la primera firma vence el domingo de la semana SIGUIENTE
-      // a la de su fecha de inicio, sin importar qué día inició.
+      // Due every Sunday. Skips the employee's first (partial) week: the
+      // first signature is due the Sunday of the week AFTER their start
+      // date's week, regardless of which day they started on.
       let d = addDays(nextSunday(start), 7);
       let i = 0;
       while (d <= horizon) {
@@ -156,27 +165,29 @@ function computeInstances(employee, completionsByKey, today, horizonDays = 120) 
 }
 
 function reasonText(instance) {
-  return `Fuera de compliance: falta "${instance.label}", vencía el ${ymd(instance.dueDate)}.`;
+  return `Out of compliance: missing "${instance.label}", was due on ${formatUS(instance.dueDate)}.`;
 }
 
 /**
- * Calcula los rangos de días en que el empleado estuvo (o sigue) fuera de
- * compliance, para sombrear esos días en el calendario.
- * - Si el requerimiento sigue vencido: el rango va de su fecha de vencimiento a hoy.
- * - Si se completó tarde (después de la fecha de vencimiento): el rango va de
- *   la fecha de vencimiento a la fecha en que se completó.
- * @returns {Array} [{start: Date, end: Date}, ...]
+ * Calculates the date ranges during which the employee was (or still is) out
+ * of compliance, to shade those days on the calendar.
+ * - If the requirement is still overdue: the range runs from its due date to today.
+ * - If it was completed late (after the due date): the range runs from the due
+ *   date to the date it was completed.
+ * Each span also carries its source instance, so the exact reason can be shown
+ * when the admin/viewer clicks any shaded day.
+ * @returns {Array} [{start: Date, end: Date, instance: Object}, ...]
  */
 function nonComplianceSpans(instances, today) {
   const todayStart = startOfDay(today);
   const spans = [];
   instances.forEach(inst => {
     if (inst.status === "overdue") {
-      spans.push({ start: inst.dueDate, end: todayStart });
+      spans.push({ start: inst.dueDate, end: todayStart, instance: inst });
     } else if (inst.status === "completed" && inst.completedDate) {
       const completed = startOfDay(parseYMD(inst.completedDate));
       if (completed > inst.dueDate) {
-        spans.push({ start: inst.dueDate, end: completed });
+        spans.push({ start: inst.dueDate, end: completed, instance: inst });
       }
     }
   });
@@ -186,4 +197,17 @@ function nonComplianceSpans(instances, today) {
 function dateInSpans(date, spans) {
   const t = startOfDay(date).getTime();
   return spans.some(s => t >= s.start.getTime() && t <= s.end.getTime());
+}
+
+// Returns the instances (requirements) whose "out of compliance" reason
+// covers the given day, to show them when a red-shaded calendar day is clicked.
+function reasonsForDay(date, spans) {
+  const t = startOfDay(date).getTime();
+  const map = new Map();
+  spans.forEach(s => {
+    if (t >= s.start.getTime() && t <= s.end.getTime()) {
+      map.set(s.instance.key, s.instance);
+    }
+  });
+  return Array.from(map.values());
 }
