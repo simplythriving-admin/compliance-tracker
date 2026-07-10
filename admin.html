@@ -342,9 +342,10 @@ function subscribeCompletions(employeeId) {
     });
 }
 
-async function markCompleted(key, dateStr, note) {
-  await db.collection("employees").doc(selectedEmployeeId).collection("completions").doc(key)
-    .set({ completedDate: dateStr, note: note || "", completedBy: currentUser.email, completedAt: firebase.firestore.FieldValue.serverTimestamp() });
+async function markCompleted(key, dateStr, note, expirationDate) {
+  const data = { completedDate: dateStr, note: note || "", completedBy: currentUser.email, completedAt: firebase.firestore.FieldValue.serverTimestamp() };
+  if (expirationDate) data.expirationDate = expirationDate;
+  await db.collection("employees").doc(selectedEmployeeId).collection("completions").doc(key).set(data);
 }
 
 async function undoCompleted(key) {
@@ -423,13 +424,20 @@ function openDayModal(dateObj, instances) {
     }
     if (inst.status === "completed") {
       inner += `<div class="done-info">Completado el ${inst.completedDate}${inst.note ? " — " + inst.note : ""}</div>`;
+      if (inst.expiring && inst.expirationDate) {
+        inner += `<div class="done-info">Vence / renovar antes del ${inst.expirationDate}</div>`;
+      }
       inner += `<button class="btn secondary small" onclick="handleUndo('${inst.key}')">Deshacer</button>`;
     } else {
+      const expirationField = inst.expiring
+        ? `<div class="field"><label>Fecha de expiración / próxima renovación</label><input type="date" id="expdate_${inst.key}"></div>`
+        : "";
       inner += `<button class="btn small" onclick="showMiniForm(this, '${inst.key}')">Marcar como completado</button>
         <div class="mini-form" id="form_${inst.key}">
           <div class="field"><label>Fecha en que se completó</label><input type="date" id="date_${inst.key}" value="${ymd(new Date())}"></div>
+          ${expirationField}
           <div class="field"><label>Nota (opcional)</label><textarea id="note_${inst.key}"></textarea></div>
-          <button class="btn small" onclick="handleMarkComplete('${inst.key}')">Guardar</button>
+          <button class="btn small" onclick="handleMarkComplete('${inst.key}', ${inst.expiring})">Guardar</button>
         </div>`;
     }
     item.innerHTML = inner;
@@ -444,10 +452,15 @@ function showMiniForm(btn, key) {
   btn.style.display = "none";
 }
 
-async function handleMarkComplete(key) {
+async function handleMarkComplete(key, expiring) {
   const dateStr = document.getElementById(`date_${key}`).value;
   const note = document.getElementById(`note_${key}`).value;
-  await markCompleted(key, dateStr, note);
+  let expirationDate = "";
+  if (expiring) {
+    expirationDate = document.getElementById(`expdate_${key}`).value;
+    if (!expirationDate) { alert("Ingresa la fecha de expiración / próxima renovación."); return; }
+  }
+  await markCompleted(key, dateStr, note, expirationDate);
   document.getElementById("dayModal").classList.remove("show");
 }
 
