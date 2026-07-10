@@ -1,11 +1,11 @@
 /*
   Due-date engine.
-  Given an employee (with startDate and notApplicable) and a map of already
-  saved "completions", generates every requirement instance with its status.
+  Given an employee (startDate, notApplicable) and a map of already-saved
+  "completions", generates every requirement instance along with its status.
 */
 
 function ymd(date) {
-  // formats to "YYYY-MM-DD" in local time — used for storage/keys, not display
+  // formats to "YYYY-MM-DD" in local time
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
@@ -42,7 +42,7 @@ function startOfDay(date) {
 }
 
 function formatUS(date) {
-  // Displays dates in US format MM/DD/YYYY (for on-screen display only;
+  // Displays dates in US format MM/DD/YYYY (for on-screen display only; the
   // internal storage still uses ymd/YYYY-MM-DD).
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
@@ -56,6 +56,11 @@ function nextSunday(date) {
   const day = d.getDay(); // 0 = Sunday ... 6 = Saturday
   const add = (7 - day) % 7;
   return addDays(d, add);
+}
+
+function firstOfNextMonth(date) {
+  // Returns the 1st day of the month AFTER the given date's month.
+  return new Date(date.getFullYear(), date.getMonth() + 1, 1);
 }
 
 /**
@@ -82,9 +87,9 @@ function computeInstances(employee, completionsByKey, today, horizonDays = 120) 
       const baseDue = addDays(start, offset);
 
       if (req.expiring) {
-        // There's no fixed renewal date: the admin sets the expiration date
-        // every time the requirement is marked completed. Each renewal
-        // generates the next due date.
+        // There's no fixed renewal date: the admin sets it every time the
+        // requirement is marked completed (the document/certificate's
+        // expiration date). Each renewal generates the next due date.
         let dueDate = baseDue;
         let periodKey = "";
         let cycle = 0;
@@ -123,7 +128,10 @@ function computeInstances(employee, completionsByKey, today, horizonDays = 120) 
         d = addDays(d, 7);
       }
     } else if (req.rule === "recurring_monthly") {
-      let d = addMonths(start, 1);
+      // Due on the 1st day of each month, starting with the 1st of the
+      // month AFTER the employee's start date (so a partial first month
+      // never counts), and repeating on the 1st every month after that.
+      let d = firstOfNextMonth(start);
       let i = 0;
       while (d <= horizon) {
         pushInstance(req, d, `m${i}`);
@@ -210,4 +218,11 @@ function reasonsForDay(date, spans) {
     }
   });
   return Array.from(map.values());
+}
+
+// Same as reasonsForDay, but only returns requirements that are still NOT
+// completed (currently overdue). Used for the simple "why is this day red"
+// message, so requirements that were completed late don't show up there.
+function overdueReasonsForDay(date, spans) {
+  return reasonsForDay(date, spans).filter(inst => inst.status === "overdue");
 }
