@@ -235,7 +235,7 @@ function renderCalendar() {
 
   for (let day = 1; day <= daysInMonth; day++) {
     const dateObj = new Date(calYear, calMonth, day);
-    const dayInstances = currentInstances.filter(i => sameDay(i.dueDate, dateObj));
+    const dayInstances = eventsForDay(dateObj, currentInstances);
     const inSpan = dateInSpans(dateObj, spans);
     const el = document.createElement("div");
     el.className = "cal-day" + (dayInstances.length ? " has-events" : "") + (sameDay(dateObj, today) ? " today" : "") + (inSpan ? " noncompliant" : "");
@@ -246,6 +246,20 @@ function renderCalendar() {
     }
     grid.appendChild(el);
   }
+}
+
+// Reúne, para un día del calendario, tanto los requerimientos que VENCEN ese
+// día como los que se COMPLETARON ese día (aunque su vencimiento sea otro día).
+function eventsForDay(dateObj, instances) {
+  const map = new Map();
+  instances.forEach(inst => {
+    if (sameDay(inst.dueDate, dateObj)) map.set(inst.key, inst);
+    if (inst.status === "completed" && inst.completedDate) {
+      const completed = parseYMD(inst.completedDate);
+      if (sameDay(completed, dateObj)) map.set(inst.key, inst);
+    }
+  });
+  return Array.from(map.values());
 }
 
 function sameDay(a, b) {
@@ -274,6 +288,9 @@ function openDayModal(dateObj, instances) {
       inner += `<div class="reason">${reasonText(inst)}</div>`;
     }
     if (inst.status === "completed") {
+      if (inst.completedDate !== ymd(inst.dueDate)) {
+        inner += `<div class="done-info">Vencía el ${ymd(inst.dueDate)}</div>`;
+      }
       inner += `<div class="done-info">Completado el ${inst.completedDate}${inst.note ? " — " + inst.note : ""}</div>`;
       if (inst.expiring && inst.expirationDate) {
         inner += `<div class="done-info">Vence / renovar antes del ${inst.expirationDate}</div>`;
