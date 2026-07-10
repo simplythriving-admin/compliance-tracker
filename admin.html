@@ -126,6 +126,7 @@
       <div id="calendarArea" style="display:none;">
         <div class="quick-actions">
           <button class="btn secondary small" id="goToStartBtn">Go to start month</button>
+          <button class="btn secondary small" id="goToTodayBtn" style="margin-left:auto;">Today</button>
         </div>
         <div id="calHeader">
           <button class="btn secondary small" id="prevMonth">←</button>
@@ -416,6 +417,13 @@ document.getElementById("goToStartBtn").onclick = () => {
   const startDate = parseYMD(employees[selectedEmployeeId].startDate);
   calYear = startDate.getFullYear();
   calMonth = startDate.getMonth();
+  renderCalendar();
+};
+document.getElementById("goToTodayBtn").onclick = () => {
+  if (!selectedEmployeeId) return;
+  const today = new Date();
+  calYear = today.getFullYear();
+  calMonth = today.getMonth();
   renderCalendar();
 };
 
