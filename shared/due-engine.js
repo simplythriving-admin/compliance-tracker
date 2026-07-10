@@ -173,6 +173,11 @@ function computeInstances(employee, completionsByKey, today, horizonDays = 120) 
 }
 
 function reasonText(instance) {
+  if (instance.status === "completed" && instance.completedDate) {
+    // Completed, but late: explain the exact window it was out of compliance.
+    const completed = parseYMD(instance.completedDate);
+    return `Out of compliance: "${instance.label}" was due on ${formatUS(instance.dueDate)}, but wasn't completed until ${formatUS(completed)}.`;
+  }
   return `Out of compliance: missing "${instance.label}", was due on ${formatUS(instance.dueDate)}.`;
 }
 
@@ -218,11 +223,4 @@ function reasonsForDay(date, spans) {
     }
   });
   return Array.from(map.values());
-}
-
-// Same as reasonsForDay, but only returns requirements that are still NOT
-// completed (currently overdue). Used for the simple "why is this day red"
-// message, so requirements that were completed late don't show up there.
-function overdueReasonsForDay(date, spans) {
-  return reasonsForDay(date, spans).filter(inst => inst.status === "overdue");
 }
