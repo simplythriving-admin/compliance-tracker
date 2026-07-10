@@ -88,6 +88,9 @@
   <div class="panel">
     <div id="noEmployee">Select an employee on the left.</div>
     <div id="calendarArea" style="display:none;">
+      <div style="margin-bottom:14px;">
+        <button class="btn secondary small" id="goToStartBtn">Go to start month</button>
+      </div>
       <div id="calHeader">
         <button class="btn secondary small" id="prevMonth">←</button>
         <div id="calTitle"></div>
@@ -207,6 +210,13 @@ function subscribeCompletions(employeeId) {
 
 document.getElementById("prevMonth").onclick = () => { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); };
 document.getElementById("nextMonth").onclick = () => { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); };
+document.getElementById("goToStartBtn").onclick = () => {
+  if (!selectedEmployeeId) return;
+  const startDate = parseYMD(employees[selectedEmployeeId].startDate);
+  calYear = startDate.getFullYear();
+  calMonth = startDate.getMonth();
+  renderCalendar();
+};
 
 function renderCalendar() {
   if (!selectedEmployeeId) return;
