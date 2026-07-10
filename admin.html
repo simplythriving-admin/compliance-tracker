@@ -502,9 +502,9 @@ function openDayModal(dateObj, instances) {
       }
       inner += `<button class="btn secondary small" onclick="handleUndo('${inst.key}')">Undo</button>`;
     } else if (inst.reqId === "weekly_timesheet") {
-      // Weekly timesheet: one click, marks it done with today's date —
-      // no date field, no mini-form.
-      inner += `<button class="btn small" onclick="handleQuickComplete('${inst.key}')">Mark as completed</button>`;
+      // Weekly timesheet: one click, marks it done using the due date of
+      // this calendar day (not today's date) — no date field, no mini-form.
+      inner += `<button class="btn small" onclick="handleQuickComplete('${inst.key}', '${ymd(inst.dueDate)}')">Mark as completed</button>`;
     } else {
       const expirationField = inst.expiring
         ? `<div class="field"><label>Expiration date / next renewal</label><input type="date" id="expdate_${inst.key}"></div>`
@@ -557,9 +557,10 @@ async function handleMarkComplete(key, expiring) {
   document.getElementById("dayModal").classList.remove("show");
 }
 
-// One click, no date field — used for weekly timesheet instances.
-async function handleQuickComplete(key) {
-  await markCompleted(key, ymd(new Date()), "");
+// One click, no date field — used for weekly timesheet instances. Marks it
+// completed using that Sunday's own date, not today's date.
+async function handleQuickComplete(key, dueDateStr) {
+  await markCompleted(key, dueDateStr, "");
   document.getElementById("dayModal").classList.remove("show");
 }
 
@@ -568,6 +569,13 @@ async function handleUndo(key) {
   await undoCompleted(key);
   document.getElementById("dayModal").classList.remove("show");
 }
+
+// Click outside the modal card (on the dark overlay) to close it.
+document.querySelectorAll(".overlay").forEach(overlay => {
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) overlay.classList.remove("show");
+  });
+});
 
 </script>
 </body>
