@@ -1,24 +1,23 @@
 /*
-  Lista de requerimientos de Compliance (Medicaid), tomada de
+  List of Medicaid compliance requirements, taken from
   "Requirements for Medicaid Compliance.docx".
 
   rule:
-    - "before_start"      -> vence en la fecha de inicio del empleado (offset 0)
-    - "days_after_start"  -> vence N días después de la fecha de inicio (ver "offset")
-    - "recurring_weekly"  -> se repite cada 7 días desde la fecha de inicio, indefinidamente
-    - "recurring_monthly" -> se repite cada mes desde la fecha de inicio, indefinidamente
+    - "before_start"      -> due on the employee's start date (offset 0)
+    - "days_after_start"  -> due N days after the start date (see "offset")
+    - "recurring_weekly"  -> repeats every 7 days from the start date, indefinitely
+    - "recurring_monthly" -> repeats every month from the start date, indefinitely
 
-  optional: true  -> el admin puede marcarlo como "No aplica" para un empleado específico
-  annualRenewal: true -> después del primer vencimiento, se repite cada año (misma fecha/mes/día)
-  expiring: true  -> no tiene fecha de renovación fija: cada vez que se marca como
-                     completado, el admin ingresa la fecha de expiración/vencimiento
-                     del documento, y esa fecha se convierte en el próximo vencimiento
-                     en el calendario (se repite así indefinidamente)
+  optional: true  -> the admin can mark this "Not applicable" for a specific employee
+  annualRenewal: true -> after the first due date, repeats every year (same month/day)
+  expiring: true  -> has no fixed renewal date: every time it's marked complete,
+                     the admin enters the expiration/renewal date, and that date
+                     becomes the next due date on the calendar (repeats indefinitely)
 */
 
 const REQUIREMENTS = [
   { id: "cro_check",          label: "CRO Check",                                   rule: "before_start" },
-  { id: "ids_received",       label: "IDs recibidos",                               rule: "before_start", expiring: true },
+  { id: "ids_received",       label: "IDs received",                                rule: "before_start", expiring: true },
   { id: "hiring_packet",      label: "Hiring Packet",                               rule: "before_start" },
   { id: "appendix_a",         label: "Appendix A – Background Check Consent",       rule: "before_start" },
   { id: "drug_test_consent",  label: "Drug Test",                                   rule: "before_start" },
@@ -39,11 +38,11 @@ const REQUIREMENTS = [
   { id: "drivers_abstract",   label: "Driver's Abstract",                           rule: "before_start" },
   { id: "w4",                  label: "W-4 Tax Form",                               rule: "days_after_start", offset: 3 },
   { id: "i9",                  label: "I-9 Form",                                   rule: "days_after_start", offset: 3 },
-  { id: "weekly_timesheet",   label: "Firma de bitácoras semanales",                rule: "recurring_weekly" },
+  { id: "weekly_timesheet",   label: "Weekly timesheet signature",                  rule: "recurring_weekly" },
   { id: "cds_60",              label: "CDS 60 day modules",                         rule: "days_after_start", offset: 60 },
   { id: "cds_120",             label: "CDS 120 day modules",                        rule: "days_after_start", offset: 120 },
   { id: "cds_189",             label: "CDS 189 day modules",                        rule: "days_after_start", offset: 180 },
 ];
 
-// Requerimientos que se pueden marcar "No aplica" por empleado
+// Requirements that can be marked "Not applicable" per employee
 const OPTIONAL_REQUIREMENT_IDS = REQUIREMENTS.filter(r => r.optional).map(r => r.id);
