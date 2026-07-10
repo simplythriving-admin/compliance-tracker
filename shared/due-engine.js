@@ -41,6 +41,14 @@ function startOfDay(date) {
   return d;
 }
 
+function nextSunday(date) {
+  // Si "date" ya es domingo, devuelve la misma fecha.
+  const d = startOfDay(date);
+  const day = d.getDay(); // 0 = domingo ... 6 = sábado
+  const add = (7 - day) % 7;
+  return addDays(d, add);
+}
+
 /**
  * Genera todas las instancias (una por vencimiento) de los requerimientos
  * aplicables a un empleado, entre su fecha de inicio y un horizonte futuro.
@@ -64,7 +72,26 @@ function computeInstances(employee, completionsByKey, today, horizonDays = 120) 
       const offset = req.offset || 0;
       const baseDue = addDays(start, offset);
 
-      if (req.annualRenewal) {
+      if (req.expiring) {
+        // La fecha de vencimiento no se calcula sola: la define el admin cada
+        // vez que marca el requerimiento como completado (fecha de expiración
+        // del documento/certificado). Cada renovación genera la siguiente.
+        let dueDate = baseDue;
+        let periodKey = "";
+        let cycle = 0;
+        while (dueDate <= horizon && cycle < 50) {
+          pushInstance(req, dueDate, periodKey);
+          const key = `${req.id}__${periodKey}`;
+          const completion = completionsByKey[key];
+          if (completion && completion.expirationDate) {
+            dueDate = parseYMD(completion.expirationDate);
+            cycle += 1;
+            periodKey = `r${cycle}`;
+          } else {
+            break;
+          }
+        }
+      } else if (req.annualRenewal) {
         let d = baseDue;
         let year = 0;
         while (d <= horizon) {
@@ -76,7 +103,9 @@ function computeInstances(employee, completionsByKey, today, horizonDays = 120) 
         pushInstance(req, baseDue, "");
       }
     } else if (req.rule === "recurring_weekly") {
-      let d = addDays(start, 7);
+      // Vence todos los domingos, sin importar el día de la semana en que
+      // inició el empleado.
+      let d = nextSunday(start);
       let i = 0;
       while (d <= horizon) {
         pushInstance(req, d, `w${i}`);
@@ -115,6 +144,8 @@ function computeInstances(employee, completionsByKey, today, horizonDays = 120) 
       status,
       completedDate: completion ? completion.completedDate : null,
       note: completion ? completion.note || "" : "",
+      expirationDate: completion ? completion.expirationDate || "" : "",
+      expiring: !!req.expiring,
       isRecurring: req.rule === "recurring_weekly" || req.rule === "recurring_monthly",
       optional: !!req.optional,
     });
