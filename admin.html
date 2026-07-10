@@ -60,6 +60,7 @@
   .cal-day:hover.has-events{border-color:var(--brand);}
   .cal-day .num{font-weight:600;color:var(--sub);}
   .cal-day.today .num{color:var(--brand);}
+  .cal-day.noncompliant{background:var(--red-bg);}
   .cal-dots{position:absolute;bottom:6px;left:6px;display:flex;gap:3px;flex-wrap:wrap;}
 
   .empty-state{color:var(--sub);font-size:13px;padding:20px;text-align:center;}
@@ -361,6 +362,7 @@ function renderCalendar() {
   const employee = employees[selectedEmployeeId];
   const today = new Date();
   currentInstances = computeInstances(employee, selectedEmployeeCompletions, today, 180);
+  const spans = nonComplianceSpans(currentInstances, today);
 
   document.getElementById("calTitle").textContent = `${MONTHS[calMonth]} ${calYear}`;
 
@@ -386,8 +388,9 @@ function renderCalendar() {
   for (let day = 1; day <= daysInMonth; day++) {
     const dateObj = new Date(calYear, calMonth, day);
     const dayInstances = currentInstances.filter(i => sameDay(i.dueDate, dateObj));
+    const inSpan = dateInSpans(dateObj, spans);
     const el = document.createElement("div");
-    el.className = "cal-day" + (dayInstances.length ? " has-events" : "") + (sameDay(dateObj, today) ? " today" : "");
+    el.className = "cal-day" + (dayInstances.length ? " has-events" : "") + (sameDay(dateObj, today) ? " today" : "") + (inSpan ? " noncompliant" : "");
     const dotsHtml = dayInstances.slice(0, 6).map(i => `<span class="dot ${colorFor(i.status)}"></span>`).join("");
     el.innerHTML = `<div class="num">${day}</div><div class="cal-dots">${dotsHtml}</div>`;
     if (dayInstances.length) {
