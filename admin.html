@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -100,14 +100,14 @@
 <header>
   <div>
     <h1>Compliance Tracker</h1>
-    <div class="tag">Panel de administración</div>
+    <div class="tag">Admin panel</div>
   </div>
   <div id="userBox"></div>
 </header>
 
 <div id="gate">
-  <p>Inicia sesión con la cuenta autorizada para administrar los empleados y sus requerimientos de compliance.</p>
-  <button class="btn" id="signInBtn">Iniciar sesión con Google</button>
+  <p>Sign in with the authorized account to manage employees and their compliance requirements.</p>
+  <button class="btn" id="signInBtn">Sign in with Google</button>
   <p id="gateMsg" style="color:var(--red);"></p>
 </div>
 
@@ -115,16 +115,16 @@
   <div class="layout">
 
     <div class="panel">
-      <h2>Empleados</h2>
+      <h2>Employees</h2>
       <div id="employeeList"></div>
-      <button class="btn secondary" style="width:100%;" id="addEmployeeBtn">+ Agregar empleado</button>
+      <button class="btn secondary" style="width:100%;" id="addEmployeeBtn">+ Add employee</button>
     </div>
 
     <div class="panel">
-      <div id="noEmployee">Selecciona un empleado a la izquierda, o agrega uno nuevo.</div>
+      <div id="noEmployee">Select an employee on the left, or add a new one.</div>
       <div id="calendarArea" style="display:none;">
         <div class="quick-actions">
-          <button class="btn secondary small" id="weeklyShortcutBtn">✓ Marcar firma de bitácora de esta semana</button>
+          <button class="btn secondary small" id="weeklyShortcutBtn">✓ Mark this week's timesheet as signed</button>
         </div>
         <div id="calHeader">
           <button class="btn secondary small" id="prevMonth">←</button>
@@ -132,9 +132,9 @@
           <button class="btn secondary small" id="nextMonth">→</button>
         </div>
         <div class="legend">
-          <span><span class="dot red"></span>Vencido</span>
-          <span><span class="dot green"></span>Completado</span>
-          <span><span class="dot blue"></span>Próximo</span>
+          <span><span class="dot red"></span>Overdue</span>
+          <span><span class="dot green"></span>Completed</span>
+          <span><span class="dot blue"></span>Upcoming</span>
         </div>
         <div class="calendar" id="calGrid"></div>
       </div>
@@ -143,31 +143,31 @@
   </div>
 </div>
 
-<!-- Modal: agregar empleado -->
+<!-- Modal: add employee -->
 <div class="overlay" id="addModal">
   <div class="modal">
-    <h3>Agregar empleado</h3>
-    <div class="field"><label>Nombre completo</label><input type="text" id="newName"></div>
-    <div class="field"><label>Puesto (opcional)</label><input type="text" id="newPosition"></div>
-    <div class="field"><label>Fecha de inicio</label><input type="date" id="newStartDate"></div>
+    <h3>Add employee</h3>
+    <div class="field"><label>Full name</label><input type="text" id="newName"></div>
+    <div class="field"><label>Position (optional)</label><input type="text" id="newPosition"></div>
+    <div class="field"><label>Start date</label><input type="date" id="newStartDate"></div>
     <div class="field">
-      <label>No aplica para este empleado:</label>
+      <label>Not applicable for this employee:</label>
       <div id="optionalChecks"></div>
     </div>
     <div class="modal-actions">
-      <button class="btn secondary small" id="cancelAdd">Cancelar</button>
-      <button class="btn small" id="saveNewEmployee">Guardar</button>
+      <button class="btn secondary small" id="cancelAdd">Cancel</button>
+      <button class="btn small" id="saveNewEmployee">Save</button>
     </div>
   </div>
 </div>
 
-<!-- Modal: día del calendario -->
+<!-- Modal: calendar day -->
 <div class="overlay" id="dayModal">
   <div class="modal">
     <h3 id="dayModalTitle"></h3>
     <div id="dayModalBody"></div>
     <div class="modal-actions">
-      <button class="btn secondary small" id="closeDayModal">Cerrar</button>
+      <button class="btn secondary small" id="closeDayModal">Close</button>
     </div>
   </div>
 </div>
@@ -189,17 +189,17 @@ let employeeBadges = {};     // id -> overdue count
 let selectedEmployeeId = null;
 let selectedEmployeeCompletions = {}; // key -> {completedDate, note}
 let unsubCompletions = null;
-let calYear, calMonth; // mes visible en el calendario (0-11)
+let calYear, calMonth; // visible calendar month (0-11)
 let currentInstances = [];
 
-const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-const DOW = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
 // ---------- AUTH ----------
 document.getElementById("signInBtn").onclick = () => {
   const provider = new firebase.auth.GoogleAuthProvider();
   auth.signInWithPopup(provider).catch(e => {
-    document.getElementById("gateMsg").textContent = "Error al iniciar sesión: " + e.message;
+    document.getElementById("gateMsg").textContent = "Error signing in: " + e.message;
   });
 };
 
@@ -211,13 +211,13 @@ auth.onAuthStateChanged(user => {
   if (user && user.email === ADMIN_EMAIL) {
     gate.style.display = "none";
     app.style.display = "block";
-    userBox.innerHTML = `<span>${user.email}</span><button class="btn secondary small" id="signOutBtn">Salir</button>`;
+    userBox.innerHTML = `<span>${user.email}</span><button class="btn secondary small" id="signOutBtn">Sign out</button>`;
     document.getElementById("signOutBtn").onclick = () => auth.signOut();
     listenEmployees();
   } else if (user) {
     gate.style.display = "flex";
     app.style.display = "none";
-    document.getElementById("gateMsg").textContent = "Esta cuenta no tiene permiso de administrador.";
+    document.getElementById("gateMsg").textContent = "This account doesn't have admin access.";
     auth.signOut();
   } else {
     gate.style.display = "flex";
@@ -256,7 +256,7 @@ function renderEmployeeList() {
   list.innerHTML = "";
   const ids = Object.keys(employees);
   if (ids.length === 0) {
-    list.innerHTML = '<div class="empty-state">Aún no hay empleados.</div>';
+    list.innerHTML = '<div class="empty-state">No employees yet.</div>';
     return;
   }
   ids.forEach(id => {
@@ -267,11 +267,11 @@ function renderEmployeeList() {
     row.innerHTML = `
       <div onclick="selectEmployee('${id}')" style="flex:1;">
         <div class="emp-name">${e.name}</div>
-        <div class="emp-sub">Inicio: ${e.startDate}</div>
+        <div class="emp-sub">Start: ${formatUS(parseYMD(e.startDate))}</div>
       </div>
       <div class="emp-actions">
         ${badgeCount > 0 ? `<span class="badge red">${badgeCount}</span>` : ""}
-        <button class="icon-btn" title="Eliminar" onclick="deleteEmployee('${id}', event)">🗑</button>
+        <button class="icon-btn" title="Delete" onclick="deleteEmployee('${id}', event)">🗑</button>
       </div>`;
     list.appendChild(row);
   });
@@ -295,7 +295,7 @@ function showNoEmployee() {
 
 async function deleteEmployee(id, evt) {
   evt.stopPropagation();
-  if (!confirm(`¿Eliminar a ${employees[id].name}? Esto borrará también su historial de compliance.`)) return;
+  if (!confirm(`Delete ${employees[id].name}? This will also delete their compliance history.`)) return;
   const compSnap = await db.collection("employees").doc(id).collection("completions").get();
   const batch = db.batch();
   compSnap.forEach(d => batch.delete(d.ref));
@@ -325,7 +325,7 @@ document.getElementById("saveNewEmployee").onclick = async () => {
   const name = document.getElementById("newName").value.trim();
   const position = document.getElementById("newPosition").value.trim();
   const startDate = document.getElementById("newStartDate").value;
-  if (!name || !startDate) { alert("Nombre y fecha de inicio son obligatorios."); return; }
+  if (!name || !startDate) { alert("Name and start date are required."); return; }
   const notApplicable = {};
   OPTIONAL_REQUIREMENT_IDS.forEach(id => {
     notApplicable[id] = document.getElementById(`opt_${id}`).checked;
@@ -392,21 +392,25 @@ function renderCalendar() {
     const dateObj = new Date(calYear, calMonth, day);
     const dayInstances = eventsForDay(dateObj, currentInstances);
     const inSpan = dateInSpans(dateObj, spans);
+    const spanReasons = inSpan ? reasonsForDay(dateObj, spans) : [];
+    const clickInstances = mergeInstances(dayInstances, spanReasons);
     const isFirstDay = sameDay(dateObj, employeeStartDate);
     const el = document.createElement("div");
     el.className = "cal-day" + (dayInstances.length ? " has-events" : "") + (sameDay(dateObj, today) ? " today" : "") + (inSpan ? " noncompliant" : "") + (isFirstDay ? " first-day" : "");
     const dotsHtml = dayInstances.slice(0, 6).map(i => `<span class="dot ${colorFor(i.status)}"></span>`).join("");
     const tagHtml = isFirstDay ? `<div class="first-day-tag">First day</div>` : "";
     el.innerHTML = `${tagHtml}<div class="num">${day}</div><div class="cal-dots">${dotsHtml}</div>`;
-    if (dayInstances.length) {
-      el.onclick = () => openDayModal(dateObj, dayInstances);
+    if (clickInstances.length) {
+      el.style.cursor = "pointer";
+      el.onclick = () => openDayModal(dateObj, clickInstances);
     }
     grid.appendChild(el);
   }
 }
 
-// Reúne, para un día del calendario, tanto los requerimientos que VENCEN ese
-// día como los que se COMPLETARON ese día (aunque su vencimiento sea otro día).
+// Gathers, for a calendar day, the requirements that are DUE that day, the
+// ones COMPLETED that day (even if their due date is a different day), and
+// the ones still open whose out-of-compliance range covers that day.
 function eventsForDay(dateObj, instances) {
   const map = new Map();
   instances.forEach(inst => {
@@ -419,6 +423,13 @@ function eventsForDay(dateObj, instances) {
   return Array.from(map.values());
 }
 
+function mergeInstances(a, b) {
+  const map = new Map();
+  a.forEach(i => map.set(i.key, i));
+  b.forEach(i => map.set(i.key, i));
+  return Array.from(map.values());
+}
+
 function sameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
@@ -428,13 +439,13 @@ function colorFor(status) {
   return "blue";
 }
 function statusLabel(status) {
-  if (status === "overdue") return "Vencido";
-  if (status === "completed") return "Completado";
-  return "Próximo";
+  if (status === "overdue") return "Overdue";
+  if (status === "completed") return "Completed";
+  return "Upcoming";
 }
 
 function openDayModal(dateObj, instances) {
-  document.getElementById("dayModalTitle").textContent = ymd(dateObj);
+  document.getElementById("dayModalTitle").textContent = formatUS(dateObj);
   const body = document.getElementById("dayModalBody");
   body.innerHTML = "";
   instances.forEach(inst => {
@@ -446,23 +457,23 @@ function openDayModal(dateObj, instances) {
     }
     if (inst.status === "completed") {
       if (inst.completedDate !== ymd(inst.dueDate)) {
-        inner += `<div class="done-info">Vencía el ${ymd(inst.dueDate)}</div>`;
+        inner += `<div class="done-info">Was due on ${formatUS(inst.dueDate)}</div>`;
       }
-      inner += `<div class="done-info">Completado el ${inst.completedDate}${inst.note ? " — " + inst.note : ""}</div>`;
+      inner += `<div class="done-info">Completed on ${formatUS(parseYMD(inst.completedDate))}${inst.note ? " — " + inst.note : ""}</div>`;
       if (inst.expiring && inst.expirationDate) {
-        inner += `<div class="done-info">Vence / renovar antes del ${inst.expirationDate}</div>`;
+        inner += `<div class="done-info">Expires / renew by ${formatUS(parseYMD(inst.expirationDate))}</div>`;
       }
-      inner += `<button class="btn secondary small" onclick="handleUndo('${inst.key}')">Deshacer</button>`;
+      inner += `<button class="btn secondary small" onclick="handleUndo('${inst.key}')">Undo</button>`;
     } else {
       const expirationField = inst.expiring
-        ? `<div class="field"><label>Fecha de expiración / próxima renovación</label><input type="date" id="expdate_${inst.key}"></div>`
+        ? `<div class="field"><label>Expiration date / next renewal</label><input type="date" id="expdate_${inst.key}"></div>`
         : "";
-      inner += `<button class="btn small" onclick="showMiniForm(this, '${inst.key}')">Marcar como completado</button>
+      inner += `<button class="btn small" onclick="showMiniForm(this, '${inst.key}')">Mark as completed</button>
         <div class="mini-form" id="form_${inst.key}">
-          <div class="field"><label>Fecha en que se completó</label><input type="date" id="date_${inst.key}" value="${ymd(new Date())}"></div>
+          <div class="field"><label>Date completed</label><input type="date" id="date_${inst.key}" value="${ymd(new Date())}"></div>
           ${expirationField}
-          <div class="field"><label>Nota (opcional)</label><textarea id="note_${inst.key}"></textarea></div>
-          <button class="btn small" onclick="handleMarkComplete('${inst.key}', ${inst.expiring})">Guardar</button>
+          <div class="field"><label>Note (optional)</label><textarea id="note_${inst.key}"></textarea></div>
+          <button class="btn small" onclick="handleMarkComplete('${inst.key}', ${inst.expiring})">Save</button>
         </div>`;
     }
     item.innerHTML = inner;
@@ -483,28 +494,28 @@ async function handleMarkComplete(key, expiring) {
   let expirationDate = "";
   if (expiring) {
     expirationDate = document.getElementById(`expdate_${key}`).value;
-    if (!expirationDate) { alert("Ingresa la fecha de expiración / próxima renovación."); return; }
+    if (!expirationDate) { alert("Enter the expiration date / next renewal."); return; }
   }
   await markCompleted(key, dateStr, note, expirationDate);
   document.getElementById("dayModal").classList.remove("show");
 }
 
 async function handleUndo(key) {
-  if (!confirm("¿Deshacer este cumplimiento?")) return;
+  if (!confirm("Undo this completion?")) return;
   await undoCompleted(key);
   document.getElementById("dayModal").classList.remove("show");
 }
 
 // ---------- WEEKLY SHORTCUT ----------
-document.getElementById("weeklyShortcutBtn").onclick = () => {
+// One click marks this week's timesheet as signed today — no date entry needed.
+document.getElementById("weeklyShortcutBtn").onclick = async () => {
   if (!selectedEmployeeId) return;
   const today = new Date();
   const weeklyInstances = currentInstances.filter(i => i.reqId === "weekly_timesheet");
-  // La instancia de esta semana: la más cercana a hoy (sin completar, o si todas completas, la próxima)
   let target = weeklyInstances.find(i => i.status !== "completed" && i.dueDate <= addDays(today, 3));
   if (!target) target = weeklyInstances.find(i => i.status === "upcoming");
-  if (!target) { alert("No hay una instancia de firma semanal disponible en este momento."); return; }
-  openDayModal(target.dueDate, [target]);
+  if (!target) { alert("No weekly timesheet instance available right now."); return; }
+  await markCompleted(target.key, ymd(today), "");
 };
 </script>
 </body>
