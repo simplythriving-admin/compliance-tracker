@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Compliance Tracker · Vista</title>
+<title>Compliance Tracker · View only</title>
 <style>
   :root{
     --bg:#F5F6F8; --ink:#1C2333; --sub:#6B7280; --card:#FFFFFF;
@@ -76,17 +76,17 @@
 
 <header>
   <h1>Compliance Tracker</h1>
-  <div class="tag">Vista de solo lectura</div>
+  <div class="tag">View only</div>
 </header>
 
 <div class="layout">
   <div class="panel">
-    <h2>Empleados</h2>
+    <h2>Employees</h2>
     <div id="employeeList"></div>
   </div>
 
   <div class="panel">
-    <div id="noEmployee">Selecciona un empleado a la izquierda.</div>
+    <div id="noEmployee">Select an employee on the left.</div>
     <div id="calendarArea" style="display:none;">
       <div id="calHeader">
         <button class="btn secondary small" id="prevMonth">←</button>
@@ -94,9 +94,9 @@
         <button class="btn secondary small" id="nextMonth">→</button>
       </div>
       <div class="legend">
-        <span><span class="dot red"></span>Vencido</span>
-        <span><span class="dot green"></span>Completado</span>
-        <span><span class="dot blue"></span>Próximo</span>
+        <span><span class="dot red"></span>Overdue</span>
+        <span><span class="dot green"></span>Completed</span>
+        <span><span class="dot blue"></span>Upcoming</span>
       </div>
       <div class="calendar" id="calGrid"></div>
     </div>
@@ -108,7 +108,7 @@
     <h3 id="dayModalTitle"></h3>
     <div id="dayModalBody"></div>
     <div class="modal-actions">
-      <button class="btn secondary small" id="closeDayModal">Cerrar</button>
+      <button class="btn secondary small" id="closeDayModal">Close</button>
     </div>
   </div>
 </div>
@@ -130,8 +130,8 @@ let unsubCompletions = null;
 let calYear, calMonth;
 let currentInstances = [];
 
-const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-const DOW = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
 db.collection("employees").orderBy("name").onSnapshot(async snap => {
   employees = {};
@@ -160,7 +160,7 @@ function renderEmployeeList() {
   list.innerHTML = "";
   const ids = Object.keys(employees);
   if (ids.length === 0) {
-    list.innerHTML = '<div class="empty-state">Aún no hay empleados registrados.</div>';
+    list.innerHTML = '<div class="empty-state">No employees yet.</div>';
     return;
   }
   ids.forEach(id => {
@@ -171,7 +171,7 @@ function renderEmployeeList() {
     row.innerHTML = `
       <div style="flex:1;">
         <div class="emp-name">${e.name}</div>
-        <div class="emp-sub">Inicio: ${e.startDate}</div>
+        <div class="emp-sub">Start: ${formatUS(parseYMD(e.startDate))}</div>
       </div>
       ${badgeCount > 0 ? `<span class="badge">${badgeCount}</span>` : ""}`;
     row.onclick = () => selectEmployee(id);
@@ -240,21 +240,25 @@ function renderCalendar() {
     const dateObj = new Date(calYear, calMonth, day);
     const dayInstances = eventsForDay(dateObj, currentInstances);
     const inSpan = dateInSpans(dateObj, spans);
+    const spanReasons = inSpan ? reasonsForDay(dateObj, spans) : [];
+    const clickInstances = mergeInstances(dayInstances, spanReasons);
     const isFirstDay = sameDay(dateObj, employeeStartDate);
     const el = document.createElement("div");
     el.className = "cal-day" + (dayInstances.length ? " has-events" : "") + (sameDay(dateObj, today) ? " today" : "") + (inSpan ? " noncompliant" : "") + (isFirstDay ? " first-day" : "");
     const dotsHtml = dayInstances.slice(0, 6).map(i => `<span class="dot ${colorFor(i.status)}"></span>`).join("");
     const tagHtml = isFirstDay ? `<div class="first-day-tag">First day</div>` : "";
     el.innerHTML = `${tagHtml}<div class="num">${day}</div><div class="cal-dots">${dotsHtml}</div>`;
-    if (dayInstances.length) {
-      el.onclick = () => openDayModal(dateObj, dayInstances);
+    if (clickInstances.length) {
+      el.style.cursor = "pointer";
+      el.onclick = () => openDayModal(dateObj, clickInstances);
     }
     grid.appendChild(el);
   }
 }
 
-// Reúne, para un día del calendario, tanto los requerimientos que VENCEN ese
-// día como los que se COMPLETARON ese día (aunque su vencimiento sea otro día).
+// Gathers, for a calendar day, the requirements that are DUE that day, the
+// ones COMPLETED that day (even if their due date is a different day), and
+// the ones still open whose out-of-compliance range covers that day.
 function eventsForDay(dateObj, instances) {
   const map = new Map();
   instances.forEach(inst => {
@@ -267,6 +271,13 @@ function eventsForDay(dateObj, instances) {
   return Array.from(map.values());
 }
 
+function mergeInstances(a, b) {
+  const map = new Map();
+  a.forEach(i => map.set(i.key, i));
+  b.forEach(i => map.set(i.key, i));
+  return Array.from(map.values());
+}
+
 function sameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
@@ -276,13 +287,13 @@ function colorFor(status) {
   return "blue";
 }
 function statusLabel(status) {
-  if (status === "overdue") return "Vencido";
-  if (status === "completed") return "Completado";
-  return "Próximo";
+  if (status === "overdue") return "Overdue";
+  if (status === "completed") return "Completed";
+  return "Upcoming";
 }
 
 function openDayModal(dateObj, instances) {
-  document.getElementById("dayModalTitle").textContent = ymd(dateObj);
+  document.getElementById("dayModalTitle").textContent = formatUS(dateObj);
   const body = document.getElementById("dayModalBody");
   body.innerHTML = "";
   instances.forEach(inst => {
@@ -294,11 +305,11 @@ function openDayModal(dateObj, instances) {
     }
     if (inst.status === "completed") {
       if (inst.completedDate !== ymd(inst.dueDate)) {
-        inner += `<div class="done-info">Vencía el ${ymd(inst.dueDate)}</div>`;
+        inner += `<div class="done-info">Was due on ${formatUS(inst.dueDate)}</div>`;
       }
-      inner += `<div class="done-info">Completado el ${inst.completedDate}${inst.note ? " — " + inst.note : ""}</div>`;
+      inner += `<div class="done-info">Completed on ${formatUS(parseYMD(inst.completedDate))}${inst.note ? " — " + inst.note : ""}</div>`;
       if (inst.expiring && inst.expirationDate) {
-        inner += `<div class="done-info">Vence / renovar antes del ${inst.expirationDate}</div>`;
+        inner += `<div class="done-info">Expires / renew by ${formatUS(parseYMD(inst.expirationDate))}</div>`;
       }
     }
     item.innerHTML = inner;
