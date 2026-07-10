@@ -103,9 +103,10 @@ function computeInstances(employee, completionsByKey, today, horizonDays = 120) 
         pushInstance(req, baseDue, "");
       }
     } else if (req.rule === "recurring_weekly") {
-      // Vence todos los domingos, sin importar el día de la semana en que
-      // inició el empleado.
-      let d = nextSunday(start);
+      // Vence todos los domingos. Se salta la primera semana (parcial) del
+      // empleado: la primera firma vence el domingo de la semana SIGUIENTE
+      // a la de su fecha de inicio, sin importar qué día inició.
+      let d = addDays(nextSunday(start), 7);
       let i = 0;
       while (d <= horizon) {
         pushInstance(req, d, `w${i}`);
@@ -156,4 +157,33 @@ function computeInstances(employee, completionsByKey, today, horizonDays = 120) 
 
 function reasonText(instance) {
   return `Fuera de compliance: falta "${instance.label}", vencía el ${ymd(instance.dueDate)}.`;
+}
+
+/**
+ * Calcula los rangos de días en que el empleado estuvo (o sigue) fuera de
+ * compliance, para sombrear esos días en el calendario.
+ * - Si el requerimiento sigue vencido: el rango va de su fecha de vencimiento a hoy.
+ * - Si se completó tarde (después de la fecha de vencimiento): el rango va de
+ *   la fecha de vencimiento a la fecha en que se completó.
+ * @returns {Array} [{start: Date, end: Date}, ...]
+ */
+function nonComplianceSpans(instances, today) {
+  const todayStart = startOfDay(today);
+  const spans = [];
+  instances.forEach(inst => {
+    if (inst.status === "overdue") {
+      spans.push({ start: inst.dueDate, end: todayStart });
+    } else if (inst.status === "completed" && inst.completedDate) {
+      const completed = startOfDay(parseYMD(inst.completedDate));
+      if (completed > inst.dueDate) {
+        spans.push({ start: inst.dueDate, end: completed });
+      }
+    }
+  });
+  return spans;
+}
+
+function dateInSpans(date, spans) {
+  const t = startOfDay(date).getTime();
+  return spans.some(s => t >= s.start.getTime() && t <= s.end.getTime());
 }
