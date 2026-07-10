@@ -9,7 +9,7 @@
     --bg:#F5F6F8; --ink:#1C2333; --sub:#6B7280; --card:#FFFFFF;
     --line:#E5E7EB; --brand:#2A3B8F; --brand-light:#EEF0FB;
     --red:#D64545; --red-bg:#FBEAEA; --green:#3C8F5C; --green-bg:#EAF6EE;
-    --blue:#2E6FD9; --blue-bg:#EAF1FC;
+    --blue:#2E6FD9; --blue-bg:#EAF1FC; --purple:#8B5CF6;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);}
@@ -59,7 +59,15 @@
   .cal-day.has-events{cursor:pointer;}
   .cal-day:hover.has-events{border-color:var(--brand);}
   .cal-day .num{font-weight:600;color:var(--sub);}
-  .cal-day.today .num{color:var(--brand);}
+  .cal-day.today .num{
+    color:#fff;
+    background:var(--purple);
+    border-radius:50%;
+    width:20px;height:20px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
   .cal-day.noncompliant{background:var(--red-bg);}
   .cal-day.first-day{border-color:var(--brand);}
   .first-day-tag{background:var(--brand);color:#fff;font-size:8px;font-weight:800;letter-spacing:0.4px;text-align:center;padding:2px 3px;border-radius:4px;margin-bottom:3px;text-transform:uppercase;}
