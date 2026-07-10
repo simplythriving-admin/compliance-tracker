@@ -118,14 +118,12 @@
       <h2>Employees</h2>
       <div id="employeeList"></div>
       <button class="btn secondary" style="width:100%;" id="addEmployeeBtn">+ Add employee</button>
+      <button class="btn secondary" style="width:100%;margin-top:8px;" id="bulkMonthlyBtn">✓ Mark Monthly Exclusion Check complete (all employees)</button>
     </div>
 
     <div class="panel">
       <div id="noEmployee">Select an employee on the left, or add a new one.</div>
       <div id="calendarArea" style="display:none;">
-        <div class="quick-actions">
-          <button class="btn secondary small" id="weeklyShortcutBtn">✓ Mark this week's timesheet as signed</button>
-        </div>
         <div id="calHeader">
           <button class="btn secondary small" id="prevMonth">←</button>
           <div id="calTitle"></div>
@@ -345,11 +343,43 @@ function subscribeCompletions(employeeId) {
     });
 }
 
-async function markCompleted(key, dateStr, note, expirationDate) {
+async function markCompletedFor(employeeId, key, dateStr, note, expirationDate) {
   const data = { completedDate: dateStr, note: note || "", completedBy: currentUser.email, completedAt: firebase.firestore.FieldValue.serverTimestamp() };
   if (expirationDate) data.expirationDate = expirationDate;
-  await db.collection("employees").doc(selectedEmployeeId).collection("completions").doc(key).set(data);
+  await db.collection("employees").doc(employeeId).collection("completions").doc(key).set(data);
 }
+
+async function markCompleted(key, dateStr, note, expirationDate) {
+  await markCompletedFor(selectedEmployeeId, key, dateStr, note, expirationDate);
+}
+
+// Marks this month's Monthly Exclusion Check as completed (today's date) for
+// every employee who has one due/upcoming this month — used for the bulk
+// upload workflow where the result comes back for all employees at once.
+async function markMonthlyExclusionForAll() {
+  const today = new Date();
+  const ids = Object.keys(employees);
+  if (ids.length === 0) { alert("No employees yet."); return; }
+  if (!confirm(`Mark this month's Monthly Exclusion Check as completed for all ${ids.length} employee(s)?`)) return;
+  let count = 0;
+  for (const id of ids) {
+    const snap = await db.collection("employees").doc(id).collection("completions").get();
+    const completionsByKey = {};
+    snap.forEach(d => completionsByKey[d.id] = d.data());
+    const instances = computeInstances(employees[id], completionsByKey, today);
+    const target = instances.find(i =>
+      i.reqId === "monthly_exclusion" &&
+      i.dueDate.getFullYear() === today.getFullYear() &&
+      i.dueDate.getMonth() === today.getMonth()
+    );
+    if (target && target.status !== "completed") {
+      await markCompletedFor(id, target.key, ymd(today), "");
+      count += 1;
+    }
+  }
+  alert(`Marked ${count} employee(s) complete for this month's Monthly Exclusion Check.`);
+}
+document.getElementById("bulkMonthlyBtn").onclick = markMonthlyExclusionForAll;
 
 async function undoCompleted(key) {
   await db.collection("employees").doc(selectedEmployeeId).collection("completions").doc(key).delete();
@@ -392,17 +422,24 @@ function renderCalendar() {
     const dateObj = new Date(calYear, calMonth, day);
     const dayInstances = eventsForDay(dateObj, currentInstances);
     const inSpan = dateInSpans(dateObj, spans);
-    const spanReasons = inSpan ? reasonsForDay(dateObj, spans) : [];
-    const clickInstances = mergeInstances(dayInstances, spanReasons);
+    // Days that only fall within a red span (not an exact due/completion
+    // date) just show a simple reason message for what's still not done —
+    // completed requirements are never included here.
+    const reasonOnly = inSpan
+      ? overdueReasonsForDay(dateObj, spans).filter(inst => !dayInstances.some(di => di.key === inst.key))
+      : [];
     const isFirstDay = sameDay(dateObj, employeeStartDate);
     const el = document.createElement("div");
     el.className = "cal-day" + (dayInstances.length ? " has-events" : "") + (sameDay(dateObj, today) ? " today" : "") + (inSpan ? " noncompliant" : "") + (isFirstDay ? " first-day" : "");
     const dotsHtml = dayInstances.slice(0, 6).map(i => `<span class="dot ${colorFor(i.status)}"></span>`).join("");
     const tagHtml = isFirstDay ? `<div class="first-day-tag">First day</div>` : "";
     el.innerHTML = `${tagHtml}<div class="num">${day}</div><div class="cal-dots">${dotsHtml}</div>`;
-    if (clickInstances.length) {
+    if (dayInstances.length) {
       el.style.cursor = "pointer";
-      el.onclick = () => openDayModal(dateObj, clickInstances);
+      el.onclick = () => openDayModal(dateObj, dayInstances);
+    } else if (reasonOnly.length) {
+      el.style.cursor = "pointer";
+      el.onclick = () => openReasonModal(dateObj, reasonOnly);
     }
     grid.appendChild(el);
   }
@@ -464,6 +501,10 @@ function openDayModal(dateObj, instances) {
         inner += `<div class="done-info">Expires / renew by ${formatUS(parseYMD(inst.expirationDate))}</div>`;
       }
       inner += `<button class="btn secondary small" onclick="handleUndo('${inst.key}')">Undo</button>`;
+    } else if (inst.reqId === "weekly_timesheet") {
+      // Weekly timesheet: one click, marks it done with today's date —
+      // no date field, no mini-form.
+      inner += `<button class="btn small" onclick="handleQuickComplete('${inst.key}')">Mark as completed</button>`;
     } else {
       const expirationField = inst.expiring
         ? `<div class="field"><label>Expiration date / next renewal</label><input type="date" id="expdate_${inst.key}"></div>`
@@ -483,6 +524,22 @@ function openDayModal(dateObj, instances) {
 }
 document.getElementById("closeDayModal").onclick = () => document.getElementById("dayModal").classList.remove("show");
 
+// Simple modal for days that are only red because they fall within a
+// non-compliance span (not an exact due/completion date): just the reason,
+// no status pill, no buttons — nothing already completed is ever shown here.
+function openReasonModal(dateObj, instances) {
+  document.getElementById("dayModalTitle").textContent = formatUS(dateObj);
+  const body = document.getElementById("dayModalBody");
+  body.innerHTML = "";
+  instances.forEach(inst => {
+    const item = document.createElement("div");
+    item.className = "instance-item";
+    item.innerHTML = `<div class="reason">${reasonText(inst)}</div>`;
+    body.appendChild(item);
+  });
+  document.getElementById("dayModal").classList.add("show");
+}
+
 function showMiniForm(btn, key) {
   document.getElementById(`form_${key}`).classList.add("show");
   btn.style.display = "none";
@@ -500,23 +557,18 @@ async function handleMarkComplete(key, expiring) {
   document.getElementById("dayModal").classList.remove("show");
 }
 
+// One click, no date field — used for weekly timesheet instances.
+async function handleQuickComplete(key) {
+  await markCompleted(key, ymd(new Date()), "");
+  document.getElementById("dayModal").classList.remove("show");
+}
+
 async function handleUndo(key) {
   if (!confirm("Undo this completion?")) return;
   await undoCompleted(key);
   document.getElementById("dayModal").classList.remove("show");
 }
 
-// ---------- WEEKLY SHORTCUT ----------
-// One click marks this week's timesheet as signed today — no date entry needed.
-document.getElementById("weeklyShortcutBtn").onclick = async () => {
-  if (!selectedEmployeeId) return;
-  const today = new Date();
-  const weeklyInstances = currentInstances.filter(i => i.reqId === "weekly_timesheet");
-  let target = weeklyInstances.find(i => i.status !== "completed" && i.dueDate <= addDays(today, 3));
-  if (!target) target = weeklyInstances.find(i => i.status === "upcoming");
-  if (!target) { alert("No weekly timesheet instance available right now."); return; }
-  await markCompleted(target.key, ymd(today), "");
-};
 </script>
 </body>
 </html>
