@@ -29,7 +29,6 @@ const REQUIREMENTS = [
   { id: "emergency_contact",  label: "Emergency Contact Form",                      rule: "days_after_start", offset: 7 },
   { id: "acuity",             label: "Acuity",                                      rule: "days_after_start", offset: 7, optional: true, annualRenewal: true },
   { id: "fingerprints",       label: "Fingerprints",                                rule: "before_start" },
-  { id: "drug_test",          label: "Drug test",                                   rule: "before_start" },
   { id: "cpr_first_aid",      label: "CPR / First Aid Course",                      rule: "before_start", expiring: true },
   { id: "monthly_exclusion",  label: "Monthly exclusion check",                     rule: "recurring_monthly" },
   { id: "cari",                label: "CARI",                                       rule: "before_start" },
