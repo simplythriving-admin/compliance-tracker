@@ -201,6 +201,9 @@ let selectedEmployeeCompletions = {}; // key -> {completedDate, note}
 let unsubCompletions = null;
 let calYear, calMonth; // visible calendar month (0-11)
 let currentInstances = [];
+let currentModalDate = null; // date currently shown in the day modal, so it
+                              // can be refreshed in place instead of closed
+                              // every time an item is marked complete
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
@@ -490,6 +493,23 @@ function renderCalendar() {
     }
     grid.appendChild(el);
   }
+
+  refreshDayModal();
+}
+
+// If the day modal is currently open, re-renders it in place with the
+// latest instance data (used after marking something complete/undone, so
+// the window stays open instead of closing automatically).
+function refreshDayModal() {
+  if (!currentModalDate) return;
+  if (!document.getElementById("dayModal").classList.contains("show")) { currentModalDate = null; return; }
+  const dayInstances = eventsForDay(currentModalDate, currentInstances);
+  if (dayInstances.length) {
+    openDayModal(currentModalDate, dayInstances);
+  } else {
+    document.getElementById("dayModal").classList.remove("show");
+    currentModalDate = null;
+  }
 }
 
 // Gathers, for a calendar day, the requirements that are DUE that day, the
@@ -529,6 +549,7 @@ function statusLabel(status) {
 }
 
 function openDayModal(dateObj, instances) {
+  currentModalDate = dateObj;
   document.getElementById("dayModalTitle").textContent = formatUS(dateObj);
   const body = document.getElementById("dayModalBody");
   body.innerHTML = "";
@@ -570,12 +591,16 @@ function openDayModal(dateObj, instances) {
   body.querySelectorAll(".us-date").forEach(attachDateMask);
   document.getElementById("dayModal").classList.add("show");
 }
-document.getElementById("closeDayModal").onclick = () => document.getElementById("dayModal").classList.remove("show");
+document.getElementById("closeDayModal").onclick = () => {
+  document.getElementById("dayModal").classList.remove("show");
+  currentModalDate = null;
+};
 
 // Simple modal for days that are only red because they fall within a
 // non-compliance span (not an exact due/completion date): just the reason,
 // no status pill, no buttons — nothing already completed is ever shown here.
 function openReasonModal(dateObj, instances) {
+  currentModalDate = null;
   document.getElementById("dayModalTitle").textContent = formatUS(dateObj);
   const body = document.getElementById("dayModalBody");
   body.innerHTML = "";
@@ -602,27 +627,30 @@ async function handleMarkComplete(key, expiring) {
     expirationDate = usToYmd(document.getElementById(`expdate_${key}`).value);
     if (!expirationDate) { alert("Enter a valid expiration date / next renewal (MM/DD/YYYY)."); return; }
   }
+  // Not closing the modal here on purpose: the "completions" listener will
+  // fire and refreshDayModal() will redraw this same window in place, so the
+  // admin can keep marking other items in the list without it closing.
   await markCompleted(key, dateStr, note, expirationDate);
-  document.getElementById("dayModal").classList.remove("show");
 }
 
 // One click, no date field — used for weekly timesheet instances. Marks it
 // completed using that Sunday's own date, not today's date.
 async function handleQuickComplete(key, dueDateStr) {
   await markCompleted(key, dueDateStr, "");
-  document.getElementById("dayModal").classList.remove("show");
 }
 
 async function handleUndo(key) {
   if (!confirm("Undo this completion?")) return;
   await undoCompleted(key);
-  document.getElementById("dayModal").classList.remove("show");
 }
 
 // Click outside the modal card (on the dark overlay) to close it.
 document.querySelectorAll(".overlay").forEach(overlay => {
   overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) overlay.classList.remove("show");
+    if (e.target === overlay) {
+      overlay.classList.remove("show");
+      currentModalDate = null;
+    }
   });
 });
 
